@@ -27,12 +27,15 @@ WORKDIR /app
 COPY --from=builder /app/dist/*.whl /tmp/
 RUN pip install --no-cache-dir /tmp/*.whl && rm /tmp/*.whl
 
-# # Copy alembic config and migrations (not in wheel, needed for migrations)
-# COPY alembic.ini ./
-# COPY migrations/ migrations/
+# Alembic (not in wheel; needed for `alembic upgrade` in the image)
+COPY alembic.ini ./
+COPY migrations/ migrations/
+
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
 
 # Ensure Python can find the package
 ENV PYTHONPATH="/app"
 
-# Default command (overridden by docker-compose per service)
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["api"]

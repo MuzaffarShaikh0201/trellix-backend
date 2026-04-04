@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     postgres_host: str = Field(..., description="PostgreSQL host")
     postgres_port: int = Field(..., description="PostgreSQL port")
     postgres_db: str = Field(..., description="PostgreSQL database")
+    postgres_schema: str = Field(
+        default="public",
+        description="PostgreSQL schema for ORM tables (use public unless you isolate app objects)",
+    )
     postgres_pool_size: int = Field(..., description="PostgreSQL pool size")
     postgres_max_overflow: int = Field(..., description="PostgreSQL max overflow")
 
