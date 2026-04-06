@@ -94,8 +94,8 @@ class User(Base, TimestampMixin):
     __table_args__ = (UniqueConstraint("email", name="unique_users_email"),)
 
 
-class UserSession(Base):
-    """Single active session row per user (access/refresh tokens)."""
+class UserSession(Base, TimestampMixin):
+    """Single active session per user; SHA-256 hex of refresh JWT (plaintext not stored)."""
 
     __tablename__ = "sessions"
 
@@ -107,20 +107,7 @@ class UserSession(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    access_token: Mapped[str] = mapped_column(String(1024), nullable=False)
-    refresh_token: Mapped[str] = mapped_column(String(2048), nullable=False)
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.current_timestamp(),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.current_timestamp(),
-        server_onupdate=func.current_timestamp(),
-        nullable=False,
-    )
+    hashed_refresh_token: Mapped[str] = mapped_column(String(64), nullable=False)
 
     user: Mapped[User] = relationship(
         back_populates="user_session",
@@ -128,7 +115,4 @@ class UserSession(Base):
         lazy="raise",
     )
 
-    __table_args__ = (
-        UniqueConstraint("user_id", name="unique_sessions_user_id"),
-        UniqueConstraint("refresh_token", name="unique_sessions_refresh_token"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", name="unique_sessions_user_id"),)

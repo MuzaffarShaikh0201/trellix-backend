@@ -5,7 +5,15 @@ Models initialization.
 from .enums import AuthTypeEnum
 from .database import Base, User, UserSession
 from .misc import Root200Response, Health200Response
-from .auth import RegisterRequest, Register201Response
+from .auth import (
+    RegisterRequest,
+    Register201Response,
+    SessionData,
+    LoginRequest,
+    Login200Response,
+    RefreshRequest,
+    Refresh200Response,
+)
 
 
 __all__ = [
@@ -17,4 +25,9 @@ __all__ = [
     "UserSession",
     "RegisterRequest",
     "Register201Response",
+    "SessionData",
+    "LoginRequest",
+    "Login200Response",
+    "RefreshRequest",
+    "Refresh200Response",
 ]

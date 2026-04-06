@@ -1,4 +1,7 @@
 import re
+from uuid import UUID
+from fastapi import Form
+from datetime import datetime, timezone
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_validator
 
@@ -121,10 +124,10 @@ class RegisterRequest(BaseModel):
         },
     )
 
-    first_name: str = Field(..., description="The first name of the user.")
-    last_name: str = Field(..., description="The last name of the user.")
-    email: EmailStr = Field(..., description="The email of the user.")
-    password: SecretStr = Field(
+    first_name: str = Form(..., description="The first name of the user.")
+    last_name: str = Form(..., description="The last name of the user.")
+    email: EmailStr = Form(..., description="The email of the user.")
+    password: SecretStr = Form(
         ..., description="The password of the user.", min_length=8, max_length=20
     )
 
@@ -154,3 +157,83 @@ class Register201Response(BaseModel):
     )
 
     message: str = Field(..., description="The message of the response.")
+
+
+class SessionData(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "session_id": "12345678-9012-3456-7890-123456789012",
+                "user_id": "12345678-9012-3456-7890-123456789012",
+                "access_token": "12345678901234567890123456789012",
+            }
+        },
+    )
+    session_id: UUID = Field(..., description="The session ID.")
+    user_id: UUID = Field(..., description="The user ID.")
+    access_token: str = Field(..., description="The access token of the user.")
+
+
+class LoginRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "email": "test@example.com",
+                "password": "********",
+            }
+        },
+    )
+    email: EmailStr = Form(..., description="The email of the user.")
+    password: SecretStr = Form(
+        ..., description="The password of the user.", min_length=8, max_length=20
+    )
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, password: SecretStr) -> SecretStr:
+        return validate_password(password)
+
+
+class Login200Response(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "User logged in successfully",
+                "access_token": "12345678901234567890123456789012",
+                "refresh_token": "12345678901234567890123456789012",
+                "session_id": "12345678-9012-3456-7890-123456789012",
+            }
+        },
+    )
+    message: str = Field(..., description="The message of the response.")
+    access_token: str = Field(..., description="The access token of the user.")
+    refresh_token: str = Field(..., description="The refresh token of the user.")
+    session_id: UUID = Field(..., description="The ID of the session.")
+
+
+class RefreshRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "refresh_token": "12345678901234567890123456789012",
+            }
+        },
+    )
+    refresh_token: str = Form(..., description="The refresh token of the user.")
+
+
+class Refresh200Response(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "Refresh token refreshed successfully",
+                "access_token": "12345678901234567890123456789012",
+                "refresh_token": "12345678901234567890123456789012",
+                "session_id": "12345678-9012-3456-7890-123456789012",
+            }
+        },
+    )
+    message: str = Field(..., description="The message of the response.")
+    access_token: str = Field(..., description="The access token of the user.")
+    refresh_token: str = Field(..., description="The refresh token of the user.")
+    session_id: UUID = Field(..., description="The ID of the session.")

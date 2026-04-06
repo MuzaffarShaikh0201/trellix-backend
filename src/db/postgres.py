@@ -49,12 +49,12 @@ class DatabaseManager:
             await self._engine.dispose()
 
     @asynccontextmanager
-    async def session(self) -> AsyncGenerator[AsyncSession, None]:
+    async def session_scope(self) -> AsyncGenerator[AsyncSession, None]:
         """
-        Provide a transactional scope for database operations.
+        Transactional scope for database operations: rollback on exception, close on exit.
 
         Usage:
-            async with db_manager.session() as session:
+            async with db_manager.session_scope() as session:
                 result = await session.execute(query)
                 await session.commit()
         """
@@ -64,20 +64,9 @@ class DatabaseManager:
         async with self._session_factory() as session:
             try:
                 yield session
-                await session.commit()
             except Exception:
                 await session.rollback()
                 raise
-
-    async def get_session(self) -> AsyncSession:
-        """
-        Get a new database session.
-        Caller is responsible for closing the session.
-        """
-        if self._session_factory is None:
-            raise RuntimeError("DatabaseManager not initialized. Call init() first.")
-
-        return self._session_factory()
 
     @property
     def engine(self) -> AsyncEngine:
@@ -95,7 +84,7 @@ class DatabaseManager:
         """
 
         try:
-            async with self.session() as session:
+            async with self.session_scope() as session:
                 await session.execute(text("SELECT 1"))
                 return True
         except Exception:
@@ -105,15 +94,13 @@ class DatabaseManager:
 db_manager = DatabaseManager()
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
-    Dependency for FastAPI endpoints to get database session.
+    FastAPI dependency: yields one ``AsyncSession`` for the request (via ``session_scope``).
 
-    Usage in FastAPI:
-        @app.get("/events")
-        async def get_events(db: AsyncSession = Depends(get_db)):
-            result = await db.execute(query)
-            return result.scalars().all()
+    Usage:
+        async def endpoint(db: AsyncSession = Depends(get_db_session)):
+            ...
     """
-    async with db_manager.session() as session:
+    async with db_manager.session_scope() as session:
         yield session

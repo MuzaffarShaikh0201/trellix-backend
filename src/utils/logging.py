@@ -32,8 +32,8 @@ def setup_logging() -> None:
             debug=dict(color="white", bold=True, bright=True),
             info=dict(color="green", bold=True, bright=True),
             warning=dict(color="yellow", bold=True, bright=True),
-            error=dict(color="magenta", bold=True, bright=True),
-            critical=dict(color="red", bold=True, bright=True),
+            error=dict(color="red", bold=True, bright=True),
+            critical=dict(color="magenta", bold=True, bright=True),
         ),
     )
 

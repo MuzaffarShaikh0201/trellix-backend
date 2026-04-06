@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     supabase_key: str = Field(..., description="Supabase key")
     bucket_name: str = Field(..., description="Supabase bucket name")
 
+    # JWT settings
+    jwt_secret_key: str = Field(..., description="JWT secret key")
+    jwt_algorithm: str = Field(..., description="JWT algorithm")
+    jwt_expiration_time: int = Field(..., description="JWT expiration time in minutes")
+    jwt_refresh_time: int = Field(..., description="JWT refresh time in hours")
+
     @property
     def postgres_url(self) -> str:
         """Generate PostgreSQL connection URL."""

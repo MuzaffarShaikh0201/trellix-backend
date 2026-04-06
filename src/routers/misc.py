@@ -2,13 +2,25 @@
 Miscellaneous routes for the Trellix Backend.
 """
 
+import uuid
+from typing import Annotated
+from pydantic import SecretStr
+from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
-from fastapi import APIRouter, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from ..config import settings
 from ..utils import get_logger
-from ..db import redis_manager, db_manager
-from ..models import Root200Response, Health200Response
+from ..db import get_db_session, redis_manager, db_manager
+from ..services import (
+    create_user_session,
+    generate_jwt_tokens,
+    get_user_by_email,
+    verify_password,
+)
+from ..models import Login200Response, Root200Response, Health200Response
 
 
 logger = get_logger(__name__)
@@ -113,4 +125,55 @@ async def health(request: Request) -> JSONResponse:
                 "database": "healthy" if db_healthy else "unhealthy",
             },
         ).model_dump(),
+    )
+
+
+@router.post(
+    path="/swagger-ui-auth",
+    include_in_schema=False,
+    status_code=status.HTTP_200_OK,
+    response_model=Login200Response,
+)
+async def swagger_ui_auth(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db_session: AsyncSession = Depends(get_db_session),
+) -> JSONResponse:
+    """
+    Token endpoint for Swagger UI.
+    """
+    logger.info("POST /swagger-ui-auth - Swagger UI auth endpoint called")
+
+    user = await get_user_by_email(form_data.username, db_session)
+
+    if not user:
+        raise HTTPException(
+            status_code=404, detail="User with this email does not exists."
+        )
+
+    if not verify_password(SecretStr(form_data.password), user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+    session_id = uuid.uuid4()
+
+    access_token, refresh_token = generate_jwt_tokens(user.id, session_id)
+
+    user_session = await create_user_session(
+        session_id, user.id, refresh_token, db_session
+    )
+
+    user.last_logged_in = datetime.now(timezone.utc)
+    await db_session.commit()
+
+    logger.info(
+        "POST /swagger-ui-auth - Response: 200 OK - Swagger UI auth endpoint completed successfully"
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=Login200Response(
+            message="Swagger UI auth completed successfully",
+            access_token=access_token,
+            refresh_token=refresh_token,
+            session_id=user_session.id,
+        ).model_dump(mode="json"),
     )
