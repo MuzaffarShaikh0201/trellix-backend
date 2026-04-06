@@ -2,15 +2,17 @@
 Trellix Backend - Main entry point.
 """
 
-from typing import AsyncGenerator
+import os
 from fastapi import FastAPI
+from typing import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from .config import settings
-from .routers import misc_router
 from .db import db_manager, redis_manager
-from .utils import setup_logging, get_logger
+from .routers import misc_router, auth_router
+from .utils import setup_logging, get_logger, download_keys
 from .custom_openapi import create_custom_openapi_generator
+
 
 # Setup logging
 setup_logging()
@@ -47,6 +49,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info(f"✓ Trellix Backend started successfully")
 
+    # Download keys
+    logger.info("Downloading keys from Supabase Storage...")
+    if not os.path.exists("keys"):
+        download_keys()
+        logger.info("✓ Keys downloaded successfully")
+    else:
+        logger.info("✓ Keys already exists")
+
     yield
 
     # Shutdown
@@ -76,6 +86,10 @@ doc_tags_metadata = [
         "name": "Miscellaneous APIs",
         "description": "Miscellaneous APIs like health check, root, etc. that are not related to any specific functionality.",
     },
+    {
+        "name": "Authentication APIs",
+        "description": "Authentication APIs like register, login, logout, etc. that are related to user authentication.",
+    },
 ]
 
 app.openapi = create_custom_openapi_generator(
@@ -89,3 +103,4 @@ app.openapi = create_custom_openapi_generator(
 
 # Include routers
 app.include_router(misc_router)
+app.include_router(auth_router)

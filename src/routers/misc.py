@@ -2,7 +2,6 @@
 Miscellaneous routes for the Trellix Backend.
 """
 
-from sqlalchemy import text
 from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Request, status
 
@@ -45,11 +44,11 @@ async def root(request: Request) -> JSONResponse:
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content={
-            "service": settings.app_name,
-            "version": settings.app_version,
-            "docs": f"{settings.base_url}/docs",
-        },
+        content=Root200Response(
+            service=settings.app_name,
+            version=settings.app_version,
+            docs=f"{settings.base_url}/docs",
+        ).model_dump(),
     )
 
 
@@ -84,18 +83,18 @@ async def health(request: Request) -> JSONResponse:
     try:
         redis_healthy = await redis_manager.ping()
     except RuntimeError as e:
-        logger.warning(f"Redis not initialized: {e}")
+        logger.warning(f"Redis not initialized: {str(e)}")
     except Exception as e:
-        logger.error(f"Redis health check failed: {e}")
+        logger.error(f"Redis health check failed: {str(e)}")
 
     # Check database connection (simple query)
     db_healthy = False
     try:
         db_healthy = await db_manager.ping()
     except RuntimeError as e:
-        logger.warning(f"Database not initialized: {e}")
+        logger.warning(f"Database not initialized: {str(e)}")
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.error(f"Database health check failed: {str(e)}")
 
     overall_healthy = redis_healthy and db_healthy
 
@@ -105,13 +104,13 @@ async def health(request: Request) -> JSONResponse:
 
     return JSONResponse(
         status_code=200 if overall_healthy else 503,
-        content={
-            "status": "healthy" if overall_healthy else "unhealthy",
-            "service": settings.app_name,
-            "version": settings.app_version,
-            "dependencies": {
+        content=Health200Response(
+            status="healthy" if overall_healthy else "unhealthy",
+            service=settings.app_name,
+            version=settings.app_version,
+            dependencies={
                 "redis": "healthy" if redis_healthy else "unhealthy",
                 "database": "healthy" if db_healthy else "unhealthy",
             },
-        },
+        ).model_dump(),
     )

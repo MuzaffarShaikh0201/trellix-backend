@@ -18,7 +18,7 @@ from sqlalchemy.dialects.postgresql import CITEXT, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from ..config import settings
-from ..models.enums import AuthTypeEnum
+from .enums import AuthTypeEnum
 
 
 _ORM_SCHEMA = (
@@ -70,6 +70,7 @@ class User(Base, TimestampMixin):
             AuthTypeEnum,
             name="auth_type_enum",
             schema=_ORM_SCHEMA,
+            values_callable=lambda obj: [e.value for e in obj],
         ),
         default=AuthTypeEnum.EMAIL,
         nullable=False,

@@ -3,8 +3,9 @@ Configuration for Trellix Backend.
 All settings are loaded from environment variables (no defaults).
 """
 
+from pathlib import Path
 from pydantic import Field
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -42,6 +43,11 @@ class Settings(BaseSettings):
     redis_password: str = Field(..., description="Redis password (empty if none)")
     redis_pool_size: int = Field(..., description="Redis pool size")
 
+    # Supabase settings
+    supabase_url: str = Field(..., description="Supabase URL")
+    supabase_key: str = Field(..., description="Supabase key")
+    bucket_name: str = Field(..., description="Supabase bucket name")
+
     @property
     def postgres_url(self) -> str:
         """Generate PostgreSQL connection URL."""
@@ -65,6 +71,26 @@ class Settings(BaseSettings):
             f"redis://{self.redis_username}:{self.redis_password}"
             f"@{self.redis_host}:{self.redis_port}"
         )
+
+    @cached_property
+    def PRIVATE_KEY(self) -> str:
+        """
+        Reads and returns the private key from the file.
+        """
+        private_key_path = Path("keys/private.pem")
+        if not private_key_path.is_file():
+            raise FileNotFoundError(f"Private key file not found: {private_key_path}")
+        return private_key_path.read_text()
+
+    @cached_property
+    def PUBLIC_KEY(self) -> str:
+        """
+        Reads and returns the public key from the file.
+        """
+        public_key_path = Path("keys/public.pem")
+        if not public_key_path.is_file():
+            raise FileNotFoundError(f"Public key file not found: {public_key_path}")
+        return public_key_path.read_text()
 
 
 @lru_cache
