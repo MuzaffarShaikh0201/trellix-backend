@@ -1,0 +1,106 @@
+# CD — Deploy to Oracle Cloud compute instance
+# Runs after CI succeeds on main, or manually (workflow_dispatch).
+#
+# Required GitHub secrets:
+#   SSH_HOST, SSH_USER, SSH_PRIVATE_KEY
+#   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
+#   BW_ACCESS_TOKEN, BW_SECRET_ID_CONFIG
+# Optional: SSH_KEY_PASSPHRASE (if the SSH private key is passphrase-protected)
+# Optional GitHub variable: APP_DIR (default: /home/{SSH_USER}/trellix-backend)
+#
+# Bitwarden: store a single JSON secret (same shape as your app .env keys → values).
+# On the instance: Docker only; .env is created in CD from Bitwarden. Deploy uses docker pull + docker run (no compose file).
+
+name: CD
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    env:
+      APP_DIR: ${{ vars.APP_DIR || format('/home/{0}/trellix-backend', secrets.SSH_USER) }}
+    steps:
+      - name: Fetch config from Bitwarden
+        uses: bitwarden/sm-action@v2
+        with:
+          access_token: ${{ secrets.BW_ACCESS_TOKEN }}
+          secrets: |
+            ${{ secrets.BW_SECRET_ID_CONFIG }} > TRELLIX_CONFIG_JSON
+
+      - name: Export config as .env
+        run: |
+          python -c "
+          import json, os
+          config = json.loads(os.environ['TRELLIX_CONFIG_JSON'])
+          with open('.env', 'w') as f:
+            for k, v in config.items():
+              val = str(v).replace(chr(10), ' ').replace(chr(13), '')
+              f.write(f'{k}={val}\n')
+          "
+
+      - name: Ensure app directory exists on Oracle Cloud
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          envs: APP_DIR
+          script: mkdir -p $APP_DIR
+
+      - name: Copy .env to Oracle Cloud
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          source: ".env"
+          target: ${{ env.APP_DIR }}
+
+      - name: Docker login on Oracle Cloud
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+          request_pty: true
+          script: |
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+      - name: Deploy to Oracle Cloud
+        env:
+          DOCKERHUB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/trellix-backend:latest
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.SSH_KEY_PASSPHRASE }}
+          envs: APP_DIR,DOCKERHUB_IMAGE
+          script: |
+            set -e
+            mkdir -p "$APP_DIR"
+            cd "$APP_DIR"
+            sg docker -c "docker pull \"$DOCKERHUB_IMAGE\""
+            sg docker -c "docker stop trellix-backend 2>/dev/null || true"
+            sg docker -c "docker rm trellix-backend 2>/dev/null || true"
+            sg docker -c "docker run -d --name trellix-backend --restart unless-stopped --env-file .env -p 5000:5000 \"$DOCKERHUB_IMAGE\""
+            sg docker -c "docker container prune -f"
+            sg docker -c "docker image prune -a -f"
