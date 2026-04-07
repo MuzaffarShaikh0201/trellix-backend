@@ -318,7 +318,6 @@ async def create_user_session(
 
         if user_session:
             await db_session.delete(user_session)
-            await db_session.commit()
 
         new_user_session = UserSession(
             id=session_id,
@@ -327,7 +326,6 @@ async def create_user_session(
         )
         db_session.add(new_user_session)
         await db_session.commit()
-        await db_session.refresh(new_user_session)
 
         return new_user_session
     except Exception as e:

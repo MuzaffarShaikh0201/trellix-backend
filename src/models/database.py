@@ -95,7 +95,7 @@ class User(Base, TimestampMixin):
 
 
 class UserSession(Base, TimestampMixin):
-    """Single active session per user; SHA-256 hex of refresh JWT (plaintext not stored)."""
+    """Single active session per user; SHA-256 hex of refresh JWT."""
 
     __tablename__ = "sessions"
 
