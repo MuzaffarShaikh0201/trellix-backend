@@ -3,12 +3,13 @@ Models initialization.
 """
 
 from .enums import AuthTypeEnum
-from .database import Base, User, UserSession
+from .database import Base, User
 from .misc import Root200Response, Health200Response
 from .auth import (
     RegisterRequest,
     Register201Response,
     SessionData,
+    UserCreds,
     LoginRequest,
     Login200Response,
     RefreshRequest,
@@ -22,10 +23,10 @@ __all__ = [
     "Health200Response",
     "Root200Response",
     "User",
-    "UserSession",
     "RegisterRequest",
     "Register201Response",
     "SessionData",
+    "UserCreds",
     "LoginRequest",
     "Login200Response",
     "RefreshRequest",

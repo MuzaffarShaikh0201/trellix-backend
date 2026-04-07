@@ -10,7 +10,7 @@ from fastapi.security.utils import get_authorization_scheme_param
 
 from ..config import settings
 from ..utils import get_logger
-from ..models import SessionData
+from ..models import UserCreds
 
 
 logger = get_logger(__name__)
@@ -37,7 +37,7 @@ class BearerHeaderAuth(OAuth2PasswordBearer):
 
     async def verify_access_token(
         self, token: str, skip_expiration: bool = False
-    ) -> dict | None:
+    ) -> UserCreds | None:
         """
         Verify a JWT access token.
 
@@ -46,7 +46,7 @@ class BearerHeaderAuth(OAuth2PasswordBearer):
         - skip_expiration: bool - Whether to skip the expiration check.
 
         # Returns:
-        - dict | None: The payload of the JWT access token.
+        - UserCreds | None: The user credentials.
         """
         try:
             decode_options = {"verify_exp": not skip_expiration}
@@ -58,15 +58,18 @@ class BearerHeaderAuth(OAuth2PasswordBearer):
                 options=decode_options,
             )
 
-            return payload
+            return UserCreds(
+                session_id=payload["jti"],
+                user_id=payload["sub"],
+            )
         except jwt.ExpiredSignatureError as e:
-            logger.exception(f"Token expired: {str(e)}")
+            logger.error(f"Token expired: {str(e)}")
             raise HTTPException(status_code=401, detail="Token expired")
         except jwt.JWTError as e:
-            logger.exception(f"Invalid token: {str(e)}")
+            logger.error(f"Invalid token: {str(e)}")
             raise HTTPException(status_code=401, detail="Invalid token")
         except Exception as e:
-            logger.exception(f"Error verifying token: {str(e)}")
+            logger.error(f"Error verifying token: {str(e)}")
             raise HTTPException(
                 status_code=500, detail="Could not verify token. Please try again."
             )
@@ -78,8 +81,9 @@ class BearerHeaderAuth(OAuth2PasswordBearer):
             str | None,
             Header(description="Authorization header", examples=["Bearer <token>"]),
         ] = None,
-    ) -> SessionData:
+    ) -> UserCreds:
         if not Authorization:
+            logger.error("No authorization header provided")
             raise HTTPException(
                 status_code=401, detail="No authorization header provided"
             )
@@ -87,17 +91,17 @@ class BearerHeaderAuth(OAuth2PasswordBearer):
         scheme, token = get_authorization_scheme_param(Authorization)
 
         if not scheme or scheme.lower() != "bearer":
+            logger.error("Invalid authorization scheme")
             raise HTTPException(status_code=401, detail="Invalid authorization scheme")
 
-        payload = await self.verify_access_token(
+        user_creds = await self.verify_access_token(
             token, skip_expiration=request.url.path == "/refresh"
         )
+        if not user_creds:
+            logger.error("Invalid access token")
+            raise HTTPException(status_code=401, detail="Invalid access token")
 
-        return SessionData(
-            session_id=payload["jti"],
-            user_id=payload["sub"],
-            access_token=token,
-        )
+        return user_creds
 
 
 bearer_header_auth = BearerHeaderAuth()

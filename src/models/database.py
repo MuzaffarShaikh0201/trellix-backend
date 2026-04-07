@@ -8,14 +8,13 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Enum,
-    ForeignKey,
     String,
     UniqueConstraint,
     func,
 )
 from sqlalchemy.schema import MetaData
 from sqlalchemy.dialects.postgresql import CITEXT, UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from ..config import settings
 from .enums import AuthTypeEnum
@@ -84,35 +83,4 @@ class User(Base, TimestampMixin):
         nullable=False,
     )
 
-    user_session: Mapped["UserSession | None"] = relationship(
-        back_populates="user",
-        cascade="all, delete-orphan",
-        uselist=False,
-        lazy="raise",
-    )
-
     __table_args__ = (UniqueConstraint("email", name="unique_users_email"),)
-
-
-class UserSession(Base, TimestampMixin):
-    """Single active session per user; SHA-256 hex of refresh JWT."""
-
-    __tablename__ = "sessions"
-
-    id: Mapped[PythonUUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    user_id: Mapped[PythonUUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    hashed_refresh_token: Mapped[str] = mapped_column(String(64), nullable=False)
-
-    user: Mapped[User] = relationship(
-        back_populates="user_session",
-        foreign_keys=[user_id],
-        lazy="raise",
-    )
-
-    __table_args__ = (UniqueConstraint("user_id", name="unique_sessions_user_id"),)

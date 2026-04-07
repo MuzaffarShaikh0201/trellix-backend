@@ -5,7 +5,7 @@ Pytest configuration and fixtures.
 
 Tests that create users must use email addresses starting with ``pytest-`` (see
 ``tests/test_auth.py``). At session start and session end, rows with
-``email LIKE 'pytest-%'`` are deleted from ``users`` (``sessions`` rows cascade),
+``email LIKE 'pytest-%'`` are deleted from ``users``,
 so normal app data is unaffected as long as real accounts do not use that prefix.
 
 Set ``SKIP_PYTEST_DB_CLEANUP=1`` to disable (not recommended).

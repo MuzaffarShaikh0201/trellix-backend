@@ -10,18 +10,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..db import get_db_session
 from ..utils import get_logger
-from ..auth import bearer_header_auth
+from ..auth import SessionStoreType, bearer_header_auth, get_session_store
 from ..services import (
     create_user,
-    create_user_session,
     generate_jwt_tokens,
-    hash_refresh_token,
-    user_exists,
     get_user_by_email,
+    hash_password,
     verify_password,
     verify_refresh_token,
-    verify_refresh_token_hash,
-    get_user_session,
 )
 from ..models import (
     Login200Response,
@@ -31,6 +27,7 @@ from ..models import (
     SessionData,
     RefreshRequest,
     Refresh200Response,
+    UserCreds,
 )
 
 
@@ -63,17 +60,19 @@ async def register(
 
     logger.info("POST /register - Register a new user endpoint called")
 
-    if await user_exists(request.email, db_session):
+    user = await get_user_by_email(request.email, db_session)
+
+    if user:
         raise HTTPException(
             status_code=409, detail="An account with this email already exists."
         )
 
-    await create_user(
-        request.email,
-        request.first_name,
-        request.last_name,
-        request.password,
-        db_session,
+    user = await create_user(
+        db_session=db_session,
+        email=request.email,
+        first_name=request.first_name,
+        last_name=request.last_name,
+        hashed_password=hash_password(request.password.get_secret_value()),
     )
 
     logger.info("POST /register - Response: 201 Created - User registered successfully")
@@ -94,13 +93,17 @@ async def register(
     response_model=Login200Response,
 )
 async def login(
-    request: LoginRequest, db_session: AsyncSession = Depends(get_db_session)
+    request: LoginRequest,
+    db_session: AsyncSession = Depends(get_db_session),
+    session_store: SessionStoreType = Depends(get_session_store),
 ) -> JSONResponse:
     """
     User login with email and password.
 
     # Args:
     - request: LoginRequest - The request object.
+    - db_session: AsyncSession - The database session.
+    - session_store: SessionStoreType - The session store.
 
     # Returns:
     - JSONResponse: A JSON response containing the user information.
@@ -121,13 +124,23 @@ async def login(
     if not verify_password(request.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
+    active_session = await session_store.get_user_session(user.id)
+
+    if active_session:
+        await session_store.delete_user_session(user.id)
+        await session_store.delete_session(active_session)
+
     session_id = uuid.uuid4()
 
     access_token, refresh_token = generate_jwt_tokens(user.id, session_id)
 
-    user_session = await create_user_session(
-        session_id, user.id, refresh_token, db_session
+    session_data = SessionData(
+        session_id=session_id,
+        user_id=user.id,
+        access_token=access_token,
     )
+    await session_store.set_session(session_data)
+    await session_store.set_user_session(user.id, session_id)
 
     user.last_logged_in = datetime.now(timezone.utc)
     await db_session.commit()
@@ -140,7 +153,7 @@ async def login(
             message="User logged in successfully",
             access_token=access_token,
             refresh_token=refresh_token,
-            session_id=user_session.id,
+            session_id=session_id,
         ).model_dump(mode="json"),
     )
 
@@ -154,16 +167,18 @@ async def login(
 )
 async def refresh(
     request: RefreshRequest,
-    session_data: SessionData = Depends(bearer_header_auth),
+    user_creds: UserCreds = Depends(bearer_header_auth),
     db_session: AsyncSession = Depends(get_db_session),
+    session_store: SessionStoreType = Depends(get_session_store),
 ) -> JSONResponse:
     """
     Refresh access token with refresh token.
 
     # Args:
     - request: RefreshRequest - The request object.
-    - session_data: SessionData - The session data from the bearer header authentication.
+    - user_creds: UserCreds - The user credentials from the bearer header authentication.
     - db_session: AsyncSession - The database session.
+    - session_store: SessionStoreType - The session store.
 
     # Returns:
     - JSONResponse: A JSON response containing the user information.
@@ -176,32 +191,31 @@ async def refresh(
     """
     logger.info("POST /refresh - Refresh access token endpoint called")
 
-    user_session = await get_user_session(session_data.session_id, db_session)
+    session_data = await session_store.get_session(user_creds.session_id)
 
-    if not user_session or not verify_refresh_token_hash(
-        request.refresh_token, user_session.hashed_refresh_token
-    ):
-        logger.error(
-            f"Invalid refresh token. User session not found or refresh token hash mismatch."
-        )
-        raise HTTPException(status_code=401, detail="Invalid refresh token.")
+    if not session_data:
+        logger.error(f"Session data not found: {user_creds.session_id}")
+        raise HTTPException(status_code=401, detail="Session data not found.")
 
     refresh_token_claims = verify_refresh_token(
         request.refresh_token, session_data.access_token
     )
 
-    if uuid.UUID(refresh_token_claims["jti"]) != user_session.id:
-        logger.error(
-            f"Invalid refresh token. Session ID mismatch: {refresh_token_claims['jti']} != {user_session.id}"
-        )
+    if (
+        uuid.UUID(refresh_token_claims["jti"]) != session_data.session_id
+        or uuid.UUID(refresh_token_claims["sub"]) != session_data.user_id
+    ):
+        logger.error(f"Invalid refresh token (Claims mismatch)")
         raise HTTPException(status_code=401, detail="Invalid refresh token.")
 
     access_token, refresh_token = generate_jwt_tokens(
-        user_session.user_id, user_session.id
+        session_data.user_id, session_data.session_id
     )
 
-    user_session.hashed_refresh_token = hash_refresh_token(refresh_token)
-    await db_session.commit()
+    session_data.access_token = access_token
+    session_data.updated_at = datetime.now(timezone.utc)
+    await session_store.set_session(session_data)
+    await session_store.set_user_session(session_data.user_id, session_data.session_id)
 
     logger.info(
         "POST /refresh - Response: 200 OK - Access token refreshed successfully"
@@ -213,6 +227,6 @@ async def refresh(
             message="Access token refreshed successfully",
             access_token=access_token,
             refresh_token=refresh_token,
-            session_id=user_session.id,
+            session_id=session_data.session_id,
         ).model_dump(mode="json"),
     )

@@ -3,20 +3,16 @@ Authentication services.
 These services are used for authentication-related operations.
 """
 
-import hmac
 import bcrypt
 import hashlib
 from jose import jwt
 from uuid import UUID
-from sqlalchemy import select
 from pydantic import SecretStr
 from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 
 from ..config import settings
 from ..utils import get_logger
-from ..models import AuthTypeEnum, User, UserSession
 
 
 logger = get_logger(__name__)
@@ -55,90 +51,30 @@ def hash_password(password: str) -> str:
     ).decode("utf-8")
 
 
-def verify_password(password: str, hashed_password: str) -> bool:
+def verify_password(password: SecretStr, hashed_password: str) -> bool:
     """
     Verify a password against a hashed password.
 
     # Args:
-    - password: str - The password to verify.
+    - password: SecretStr - The password to verify.
     - hashed_password: str - The hashed password to verify against.
 
     # Returns:
     - bool - True if the password is verified, False otherwise.
-    """
-    return bcrypt.checkpw(
-        _password_digest_for_bcrypt(password), hashed_password.encode("utf-8")
-    )
-
-
-async def user_exists(email: str, db_session: AsyncSession) -> bool:
-    """
-    Check if a user exists in the database.
-
-    # Args:
-    - email: str - The email of the user.
-    - db_session: AsyncSession - The database session.
-
-    # Returns:
-    - bool - True if the user exists, False otherwise.
 
     # Raises:
-    - HTTPException: If the user check fails.
+    - HTTPException: If the password verification fails.
     """
-
     try:
-        result = await db_session.execute(select(User).where(User.email == email))
-        return result.scalar_one_or_none() is not None
+        return bcrypt.checkpw(
+            _password_digest_for_bcrypt(password.get_secret_value()),
+            hashed_password.encode("utf-8"),
+        )
     except Exception as e:
-        logger.exception(f"Error checking if user exists: {str(e)}")
+        logger.exception(f"Error verifying password: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail="Could not verify email availability. Please try again.",
-        )
-
-
-async def create_user(
-    email: str,
-    first_name: str,
-    last_name: str,
-    password: SecretStr,
-    db_session: AsyncSession,
-) -> User:
-    """
-    Create a new user in the database.
-
-    # Args:
-    - email: str - The email of the user.
-    - first_name: str - The first name of the user.
-    - last_name: str - The last name of the user.
-    - password: SecretStr - The password of the user.
-    - db_session: AsyncSession - The database session.
-
-    # Returns:
-    - User: The created user.
-
-    # Raises:
-    - HTTPException: If the user creation fails.
-    """
-
-    try:
-        user = User(
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            hashed_password=hash_password(password.get_secret_value()),
-            auth_type=AuthTypeEnum.EMAIL,
-        )
-        db_session.add(user)
-        await db_session.commit()
-
-        return user
-    except Exception as e:
-        await db_session.rollback()
-        logger.exception(f"Error creating user: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Could not create your account. Please try again.",
+            detail="Could not verify password. Please try again.",
         )
 
 
@@ -197,62 +133,6 @@ def generate_jwt_tokens(user_id: UUID, session_id: UUID) -> tuple[str, str]:
         )
 
 
-def verify_password(password: SecretStr, hashed_password: str) -> bool:
-    """
-    Verify a password against a hashed password using bcrypt.
-
-    # Args:
-    - password: SecretStr - The password to verify.
-    - hashed_password: str - The hashed password to verify against.
-
-    # Returns:
-    - bool - True if the password is verified, False otherwise.
-
-    # Raises:
-    - HTTPException: If the password verification fails.
-    """
-    try:
-        return bcrypt.checkpw(
-            _password_digest_for_bcrypt(password.get_secret_value()),
-            hashed_password.encode("utf-8"),
-        )
-    except Exception as e:
-        logger.exception(f"Error verifying password: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Could not verify password. Please try again.",
-        )
-
-
-def hash_refresh_token(refresh_token: str) -> str:
-    """
-    Hash a refresh token using SHA-256.
-
-    # Args:
-    - refresh_token: str - The refresh token to hash.
-
-    # Returns:
-    - str: The hashed refresh token.
-    """
-
-    return hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
-
-
-def verify_refresh_token_hash(token: str, stored_hash: str) -> bool:
-    """
-    Verify a refresh token against a hashed refresh token using SHA-256.
-
-    # Args:
-    - token: str - The refresh token to verify.
-    - stored_hash: str - The hashed refresh token to verify against.
-
-    # Returns:
-    - bool: True if the refresh token is verified, False otherwise.
-    """
-
-    return hmac.compare_digest(hash_refresh_token(token), stored_hash)
-
-
 def verify_refresh_token(token: str, access_token: str) -> dict | None:
     """
     Verify a JWT refresh token.
@@ -273,6 +153,7 @@ def verify_refresh_token(token: str, access_token: str) -> dict | None:
             settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm],
             access_token=access_token,
+            options={"verify_exp": False},
         )
 
         return payload
@@ -287,81 +168,4 @@ def verify_refresh_token(token: str, access_token: str) -> dict | None:
         raise HTTPException(
             status_code=500,
             detail="Could not verify JWT refresh token. Please try again.",
-        )
-
-
-async def create_user_session(
-    session_id: UUID,
-    user_id: UUID,
-    refresh_token: str,
-    db_session: AsyncSession,
-) -> UserSession:
-    """
-    Create a new user session for a user.
-
-    # Args:
-    - session_id: UUID - The ID of the session.
-    - user_id: UUID - The ID of the user.
-    - refresh_token: str - The refresh token.
-    - db_session: AsyncSession - The database session.
-
-    # Returns:
-    - UserSession: The user session object.
-
-    # Raises:
-    - HTTPException: If the user session creation fails.
-    """
-    try:
-        user_session_query = select(UserSession).where(UserSession.user_id == user_id)
-        user_session = await db_session.execute(user_session_query)
-        user_session = user_session.scalar_one_or_none()
-
-        if user_session:
-            await db_session.delete(user_session)
-            await db_session.flush()
-
-        new_user_session = UserSession(
-            id=session_id,
-            user_id=user_id,
-            hashed_refresh_token=hash_refresh_token(refresh_token),
-        )
-        db_session.add(new_user_session)
-        await db_session.commit()
-
-        return new_user_session
-    except Exception as e:
-        await db_session.rollback()
-        logger.exception(f"Error creating user session: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Could not create user session. Please try again.",
-        )
-
-
-async def get_user_session(
-    session_id: UUID,
-    db_session: AsyncSession,
-) -> UserSession | None:
-    """
-    Get a user session by session ID.
-
-    # Args:
-    - session_id: UUID - The ID of the session.
-    - db_session: AsyncSession - The database session.
-
-    # Returns:
-    - UserSession: The user session object.
-
-    # Raises:
-    - HTTPException: If the user session retrieval fails.
-    """
-    try:
-        user_session_query = select(UserSession).where(UserSession.id == session_id)
-        user_session = await db_session.execute(user_session_query)
-        return user_session.scalar_one_or_none()
-    except Exception as e:
-        logger.exception(f"Error getting user session: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="Could not get user session. Please try again.",
         )

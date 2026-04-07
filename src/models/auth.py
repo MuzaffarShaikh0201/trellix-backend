@@ -1,9 +1,16 @@
 import re
-from uuid import UUID
 from fastapi import Form
 from datetime import datetime, timezone
 from fastapi.exceptions import RequestValidationError
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_validator
+from pydantic import (
+    UUID4,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    SecretStr,
+    field_validator,
+)
 
 
 def validate_password(password: SecretStr) -> SecretStr:
@@ -166,12 +173,36 @@ class SessionData(BaseModel):
                 "session_id": "12345678-9012-3456-7890-123456789012",
                 "user_id": "12345678-9012-3456-7890-123456789012",
                 "access_token": "12345678901234567890123456789012",
+                "created_at": "2026-04-07T12:00:00.000000",
+                "updated_at": "2026-04-07T12:00:00.000000",
             }
         },
     )
-    session_id: UUID = Field(..., description="The session ID.")
-    user_id: UUID = Field(..., description="The user ID.")
+    session_id: UUID4 = Field(..., description="The session ID.")
+    user_id: UUID4 = Field(..., description="The user ID.")
     access_token: str = Field(..., description="The access token of the user.")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="The creation date of the session.",
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="The last update date of the session.",
+    )
+
+
+class UserCreds(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "session_id": "12345678-9012-3456-7890-123456789012",
+                "user_id": "12345678-9012-3456-7890-123456789012",
+            }
+        },
+    )
+
+    session_id: UUID4 = Field(..., description="The session ID.")
+    user_id: UUID4 = Field(..., description="The user ID.")
 
 
 class LoginRequest(BaseModel):
@@ -208,7 +239,7 @@ class Login200Response(BaseModel):
     message: str = Field(..., description="The message of the response.")
     access_token: str = Field(..., description="The access token of the user.")
     refresh_token: str = Field(..., description="The refresh token of the user.")
-    session_id: UUID = Field(..., description="The ID of the session.")
+    session_id: UUID4 = Field(..., description="The ID of the session.")
 
 
 class RefreshRequest(BaseModel):
@@ -236,4 +267,4 @@ class Refresh200Response(BaseModel):
     message: str = Field(..., description="The message of the response.")
     access_token: str = Field(..., description="The access token of the user.")
     refresh_token: str = Field(..., description="The refresh token of the user.")
-    session_id: UUID = Field(..., description="The ID of the session.")
+    session_id: UUID4 = Field(..., description="The ID of the session.")
