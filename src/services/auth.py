@@ -318,6 +318,7 @@ async def create_user_session(
 
         if user_session:
             await db_session.delete(user_session)
+            await db_session.flush()
 
         new_user_session = UserSession(
             id=session_id,
