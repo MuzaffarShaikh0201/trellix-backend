@@ -61,5 +61,5 @@ def download_keys():
             f"Private key downloaded successfully and saved as '{private_key_path}'"
         )
     except Exception:
-        logger.exception("Error downloading keys")
+        logger.error("Error downloading keys")
         raise RuntimeError("Failed to download keys") from None

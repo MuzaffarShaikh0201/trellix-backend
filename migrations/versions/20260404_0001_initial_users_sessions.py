@@ -111,11 +111,20 @@ def upgrade() -> None:
         sa.UniqueConstraint("refresh_token", name="unique_sessions_refresh_token"),
         schema=schema,
     )
+    op.create_index(
+        "idx_users_email",
+        "users",
+        ["email"],
+        unique=False,
+        schema=schema,
+        postgresql_using="btree",
+    )
 
 
 def downgrade() -> None:
     schema = _table_schema()
 
+    op.drop_index("idx_users_email", table_name="users", schema=schema)
     op.drop_table("sessions", schema=schema)
     op.drop_table("users", schema=schema)
 

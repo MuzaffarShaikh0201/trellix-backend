@@ -71,7 +71,7 @@ def verify_password(password: SecretStr, hashed_password: str) -> bool:
             hashed_password.encode("utf-8"),
         )
     except Exception as e:
-        logger.exception(f"Error verifying password: {str(e)}")
+        logger.error(f"Error verifying password: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Could not verify password. Please try again.",
@@ -126,7 +126,7 @@ def generate_jwt_tokens(user_id: UUID, session_id: UUID) -> tuple[str, str]:
 
         return access_token, refresh_token
     except Exception as e:
-        logger.exception(f"Error generating JWT tokens: {str(e)}")
+        logger.error(f"Error generating JWT tokens: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Could not generate JWT tokens. Please try again.",
@@ -158,13 +158,13 @@ def verify_refresh_token(token: str, access_token: str) -> dict | None:
 
         return payload
     except jwt.ExpiredSignatureError as e:
-        logger.exception(f"JWT refresh token expired: {str(e)}")
+        logger.error(f"JWT refresh token expired: {str(e)}")
         raise HTTPException(status_code=401, detail="JWT refresh token expired")
     except jwt.JWTError as e:
-        logger.exception(f"Invalid JWT refresh token: {str(e)}")
+        logger.error(f"Invalid JWT refresh token: {str(e)}")
         raise HTTPException(status_code=401, detail="Invalid JWT refresh token")
     except Exception as e:
-        logger.exception(f"Error verifying JWT refresh token: {str(e)}")
+        logger.error(f"Error verifying JWT refresh token: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Could not verify JWT refresh token. Please try again.",

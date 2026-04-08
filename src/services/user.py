@@ -33,7 +33,7 @@ async def get_user_by_email(email: str, db_session: AsyncSession) -> User | None
         result = await db_session.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
     except Exception as e:
-        logger.exception(f"Error getting user by email: {str(e)}")
+        logger.error(f"Error getting user by email: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Could not get user by email. Please try again.",
@@ -81,7 +81,7 @@ async def create_user(
         return user
     except Exception as e:
         await db_session.rollback()
-        logger.exception(f"Error creating user: {str(e)}")
+        logger.error(f"Error creating user: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Could not create user. Please try again.",

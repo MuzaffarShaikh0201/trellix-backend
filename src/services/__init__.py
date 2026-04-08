@@ -9,6 +9,7 @@ from .auth import (
     verify_refresh_token,
 )
 from .user import get_user_by_email, create_user
+from .project import create_project
 
 __all__ = [
     "create_user",
@@ -17,4 +18,5 @@ __all__ = [
     "verify_password",
     "generate_jwt_tokens",
     "verify_refresh_token",
+    "create_project",
 ]

@@ -9,9 +9,9 @@ from contextlib import asynccontextmanager
 
 from .config import settings
 from .db import db_manager, redis_manager
-from .routers import misc_router, auth_router
 from .utils import setup_logging, get_logger, download_keys
 from .custom_openapi import create_custom_openapi_generator
+from .routers import misc_router, auth_router, project_router
 
 
 # Setup logging
@@ -90,6 +90,10 @@ doc_tags_metadata = [
         "name": "Authentication APIs",
         "description": "Authentication APIs like register, login, logout, etc. that are related to user authentication.",
     },
+    {
+        "name": "Project APIs",
+        "description": "Project APIs like create, get, update, delete, etc. that are related to project management.",
+    },
 ]
 
 app.openapi = create_custom_openapi_generator(
@@ -104,3 +108,4 @@ app.openapi = create_custom_openapi_generator(
 # Include routers
 app.include_router(misc_router)
 app.include_router(auth_router)
+app.include_router(project_router)

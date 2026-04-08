@@ -1,3 +1,8 @@
+"""
+Pydantic models for auth routes.
+These models are used for API request/response validation.
+"""
+
 import re
 from fastapi import Form
 from datetime import datetime, timezone
