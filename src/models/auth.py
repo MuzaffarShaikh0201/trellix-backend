@@ -234,14 +234,12 @@ class Login200Response(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "message": "User logged in successfully",
                 "access_token": "12345678901234567890123456789012",
                 "refresh_token": "12345678901234567890123456789012",
                 "session_id": "12345678-9012-3456-7890-123456789012",
             }
         },
     )
-    message: str = Field(..., description="The message of the response.")
     access_token: str = Field(..., description="The access token of the user.")
     refresh_token: str = Field(..., description="The refresh token of the user.")
     session_id: UUID4 = Field(..., description="The ID of the session.")
@@ -262,14 +260,23 @@ class Refresh200Response(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "message": "Refresh token refreshed successfully",
                 "access_token": "12345678901234567890123456789012",
                 "refresh_token": "12345678901234567890123456789012",
                 "session_id": "12345678-9012-3456-7890-123456789012",
             }
         },
     )
-    message: str = Field(..., description="The message of the response.")
     access_token: str = Field(..., description="The access token of the user.")
     refresh_token: str = Field(..., description="The refresh token of the user.")
     session_id: UUID4 = Field(..., description="The ID of the session.")
+
+
+class Logout200Response(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "User logged out successfully",
+            }
+        },
+    )
+    message: str = Field(..., description="The message of the response.")

@@ -43,12 +43,6 @@ async def root(request: Request) -> JSONResponse:
 
     # Returns:
     - JSONResponse: A JSON response containing the service information.
-        - status_code: The status code of the response.
-        - content: A dictionary containing the service information.
-            - service: The name of the service.
-            - version: The version of the service.
-            - environment: The environment the service is running in.
-            - docs: The URL of the documentation.
     """
 
     logger.info("GET / - Root endpoint called")
@@ -80,12 +74,6 @@ async def health(request: Request) -> JSONResponse:
 
     # Returns:
     - JSONResponse: A JSON response containing the health status.
-        - status_code: The status code of the response.
-        - content: A dictionary containing the health status.
-            - status: The health status of the application.
-            - service: The name of the service.
-            - version: The version of the service.
-            - dependencies: The dependencies of the service.
     """
 
     logger.info("GET /healthz - Health check endpoint called")
@@ -182,7 +170,6 @@ async def swagger_ui_auth(
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=Login200Response(
-            message="Swagger UI auth completed successfully",
             access_token=access_token,
             refresh_token=refresh_token,
             session_id=session_id,

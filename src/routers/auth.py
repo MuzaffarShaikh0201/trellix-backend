@@ -22,6 +22,7 @@ from ..services import (
 from ..models import (
     Login200Response,
     LoginRequest,
+    Logout200Response,
     RegisterRequest,
     Register201Response,
     SessionData,
@@ -43,7 +44,8 @@ router = APIRouter(tags=["Authentication APIs"])
     response_model=Register201Response,
 )
 async def register(
-    request: RegisterRequest, db_session: AsyncSession = Depends(get_db_session)
+    request: RegisterRequest = Depends(),
+    db_session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
     """
     Register a new user with email and password.
@@ -93,7 +95,7 @@ async def register(
     response_model=Login200Response,
 )
 async def login(
-    request: LoginRequest,
+    request: LoginRequest = Depends(),
     db_session: AsyncSession = Depends(get_db_session),
     session_store: SessionStoreType = Depends(get_session_store),
 ) -> JSONResponse:
@@ -107,9 +109,6 @@ async def login(
 
     # Returns:
     - JSONResponse: A JSON response containing the user information.
-        - status_code: The status code of the response.
-        - content: A dictionary containing the user information.
-            - message: The message of the response.
     """
 
     logger.info("POST /login - User login endpoint called")
@@ -150,7 +149,6 @@ async def login(
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=Login200Response(
-            message="User logged in successfully",
             access_token=access_token,
             refresh_token=refresh_token,
             session_id=session_id,
@@ -166,9 +164,8 @@ async def login(
     response_model=Refresh200Response,
 )
 async def refresh(
-    request: RefreshRequest,
+    request: RefreshRequest = Depends(),
     user_creds: UserCreds = Depends(bearer_header_auth),
-    db_session: AsyncSession = Depends(get_db_session),
     session_store: SessionStoreType = Depends(get_session_store),
 ) -> JSONResponse:
     """
@@ -177,17 +174,10 @@ async def refresh(
     # Args:
     - request: RefreshRequest - The request object.
     - user_creds: UserCreds - The user credentials from the bearer header authentication.
-    - db_session: AsyncSession - The database session.
     - session_store: SessionStoreType - The session store.
 
     # Returns:
-    - JSONResponse: A JSON response containing the user information.
-        - status_code: The status code of the response.
-        - content: A dictionary containing the user information.
-            - message: The message of the response.
-            - access_token: The access token of the user.
-            - refresh_token: The refresh token of the user.
-            - session_id: The ID of the session.
+    - JSONResponse: A JSON response containing the access token and refresh token.
     """
     logger.info("POST /refresh - Refresh access token endpoint called")
 
@@ -224,9 +214,50 @@ async def refresh(
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content=Refresh200Response(
-            message="Access token refreshed successfully",
             access_token=access_token,
             refresh_token=refresh_token,
             session_id=session_data.session_id,
         ).model_dump(mode="json"),
+    )
+
+
+@router.post(
+    path="/logout",
+    summary="Logout user",
+    description="Logout user from the system.",
+    status_code=status.HTTP_200_OK,
+    response_model=Logout200Response,
+)
+async def logout(
+    user_creds: UserCreds = Depends(bearer_header_auth),
+    session_store: SessionStoreType = Depends(get_session_store),
+) -> JSONResponse:
+    """
+    Logout user from the system.
+
+    # Args:
+    - user_creds: UserCreds - The user credentials from the bearer header authentication.
+    - session_store: SessionStoreType - The session store.
+
+    # Returns:
+    - JSONResponse: A JSON response containing the message.
+    """
+    logger.info("POST /logout - Logout user endpoint called")
+
+    session_data = await session_store.get_session(user_creds.session_id)
+
+    if not session_data:
+        logger.error(f"Session data not found: {user_creds.session_id}")
+        raise HTTPException(status_code=401, detail="Session data not found.")
+
+    await session_store.delete_session(user_creds.session_id)
+    await session_store.delete_user_session(session_data.user_id)
+
+    logger.info("POST /logout - Response: 200 OK - User logged out successfully")
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=Logout200Response(message="User logged out successfully").model_dump(
+            mode="json"
+        ),
     )

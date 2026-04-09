@@ -5,12 +5,13 @@ Bearer token authentication.
 from jose import jwt
 from typing import Annotated
 from fastapi.security import OAuth2PasswordBearer
-from fastapi import HTTPException, Header, Request
+from fastapi import Depends, HTTPException, Header, Request
 from fastapi.security.utils import get_authorization_scheme_param
 
 from ..config import settings
 from ..utils import get_logger
 from ..models import UserCreds
+from .session_store import SessionStore as SessionStoreType, get_session_store
 
 
 logger = get_logger(__name__)
@@ -81,6 +82,7 @@ class BearerHeaderAuth(OAuth2PasswordBearer):
             str | None,
             Header(description="Authorization header", examples=["Bearer <token>"]),
         ] = None,
+        session_store: SessionStoreType = Depends(get_session_store),
     ) -> UserCreds:
         if not Authorization:
             logger.error("No authorization header provided")
@@ -100,6 +102,16 @@ class BearerHeaderAuth(OAuth2PasswordBearer):
         if not user_creds:
             logger.error("Invalid access token")
             raise HTTPException(status_code=401, detail="Invalid access token")
+
+        session_data = await session_store.get_session(user_creds.session_id)
+
+        if not session_data:
+            logger.error(f"Session data not found: {user_creds.session_id}")
+            raise HTTPException(status_code=401, detail="Token expired.")
+
+        if session_data.user_id != user_creds.user_id:
+            logger.error(f"Invalid session data: {user_creds.session_id}")
+            raise HTTPException(status_code=401, detail="Token expired.")
 
         return user_creds
 

@@ -4,7 +4,9 @@ These services are used for project-related operations.
 """
 
 from datetime import date
-from sqlalchemy import select
+import math
+from pydantic import UUID4
+from sqlalchemy import func, select
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +21,140 @@ from ..models import (
 
 
 logger = get_logger(__name__)
+
+
+async def get_all_projects_by_user_id(
+    db_session: AsyncSession,
+    user_id: UUID4,
+    page: int,
+    limit: int,
+    sort_by: str,
+    sort_order: str,
+    status: ProjectStatusEnum | None,
+    category: ProjectCategoryEnum | None,
+    priority: ProjectPriorityEnum | None,
+) -> list[Project]:
+    """
+    Get all projects by user ID (not deleted and not archived).
+    Filters, sorting, and pagination are supported.
+
+    # Args:
+    - db_session: AsyncSession - The database session.
+    - user_id: UUID4 - The user ID.
+    - page: int - The page number.
+    - limit: int - The number of projects per page.
+    - sort_by: str - The field to sort by.
+    - sort_order: str - The order to sort by.
+    - status: ProjectStatusEnum | None - The status of the projects.
+    - category: ProjectCategoryEnum | None - The category of the projects.
+    - priority: ProjectPriorityEnum | None - The priority of the projects.
+
+    # Returns:
+    - list[Project]: The list of projects.
+
+    # Raises:
+    - HTTPException: If the project retrieval fails.
+    """
+
+    try:
+        # Base query
+        projects_stmt = select(Project).where(
+            Project.user_id == user_id,
+            Project.is_deleted == False,
+            Project.status != ProjectStatusEnum.ARCHIVED,
+        )
+
+        # Apply filters
+        if status:
+            projects_stmt = projects_stmt.where(Project.status == status)
+        if category:
+            projects_stmt = projects_stmt.where(Project.category == category)
+        if priority:
+            projects_stmt = projects_stmt.where(Project.priority == priority)
+
+        # Total items
+        count_stmt = select(func.count()).select_from(projects_stmt)
+        total_items_result = await db_session.execute(count_stmt)
+        total_items = total_items_result.scalar_one()
+        total_pages = math.ceil(total_items / limit)
+
+        # Sorting
+        projects_stmt = projects_stmt.order_by(
+            getattr(Project, sort_by).asc()
+            if sort_order == "asc"
+            else getattr(Project, sort_by).desc()
+        )
+
+        # Pagination
+        projects_stmt = projects_stmt.offset((page - 1) * limit).limit(limit)
+
+        # Execute query
+        projects_result = await db_session.execute(projects_stmt)
+        projects = projects_result.scalars().all()
+
+        logger.info(
+            f"Projects fetched successfully for user ID: {user_id} - {total_items} projects - {total_pages} pages - {page} page - {limit} limit"
+        )
+        return projects, total_pages, total_items
+    except Exception as e:
+        logger.error(f"Error getting projects by user ID: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Could not get projects by user ID. Please try again.",
+        )
+
+
+async def get_project_by_id(
+    db_session: AsyncSession,
+    user_id: UUID4,
+    project_id: UUID4,
+) -> Project:
+    """
+    Get a project by ID for the current user.
+
+    # Args:
+    - db_session: AsyncSession - The database session.
+    - user_id: UUID4 - The user ID.
+    - project_id: UUID4 - The ID of the project.
+
+    # Returns:
+    - Project: The project object.
+
+    # Raises:
+    - HTTPException: If the project retrieval fails.
+    """
+    try:
+        project = await db_session.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.is_deleted == False,
+            )
+        )
+        project = project.scalar_one()
+
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found.",
+            )
+
+        if project.user_id != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You are not authorized to access this project.",
+            )
+
+        logger.info(
+            f"Project fetched successfully by ID: {project_id} for user ID: {user_id}"
+        )
+        return project
+    except Exception as e:
+        logger.error(f"Error getting project by ID: {str(e)} for user ID: {user_id}")
+        raise HTTPException(
+            status_code=500,
+            detail="Could not get project by ID. Please try again.",
+            headers={"X-Error": str(e)},
+        )
 
 
 async def create_project(
