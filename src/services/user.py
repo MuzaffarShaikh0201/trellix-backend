@@ -3,18 +3,19 @@ User services.
 These services are used for user-related operations.
 """
 
+from pydantic import UUID4
 from sqlalchemy import select
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import AuthTypeEnum, User
 from ..utils import get_logger
+from ..models import AuthTypeEnum, User
 
 
 logger = get_logger(__name__)
 
 
-async def get_user_by_email(email: str, db_session: AsyncSession) -> User | None:
+async def get_user_by_email(email: str, db_session: AsyncSession) -> User:
     """
     Get a user by email.
 
@@ -26,12 +27,23 @@ async def get_user_by_email(email: str, db_session: AsyncSession) -> User | None
     - User: The user object.
 
     # Raises:
-    - HTTPException: If the user retrieval fails.
+    - HTTPException: If the user retrieval fails or if the user is not found.
     """
 
     try:
-        result = await db_session.execute(select(User).where(User.email == email))
-        return result.scalar_one_or_none()
+        user_stmt = select(User).where(User.email == email)
+        user_result = await db_session.execute(user_stmt)
+        user = user_result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found.",
+            )
+
+        return user
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Error getting user by email: {str(e)}")
         raise HTTPException(
@@ -85,4 +97,41 @@ async def create_user(
         raise HTTPException(
             status_code=500,
             detail="Could not create user. Please try again.",
+        )
+
+
+async def get_user_by_id(user_id: UUID4, db_session: AsyncSession) -> User:
+    """
+    Get a user by ID.
+
+    # Args:
+    - user_id: UUID4 - The ID of the user.
+    - db_session: AsyncSession - The database session.
+
+    # Returns:
+    - User: The user object.
+
+    # Raises:
+    - HTTPException: If the user retrieval fails or if the user is not found.
+    """
+
+    try:
+        user_stmt = select(User).where(User.id == user_id)
+        user_result = await db_session.execute(user_stmt)
+        user = user_result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found.",
+            )
+
+        return user
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting user by ID: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Could not get user by ID. Please try again.",
         )

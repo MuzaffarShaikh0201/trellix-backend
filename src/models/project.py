@@ -141,6 +141,10 @@ class GetAllProjectsRequest(BaseModel):
         None,
         description="The priority of the projects.",
     )
+    is_favorite: Optional[bool] = Query(
+        None,
+        description="Whether the projects are marked as favorite.",
+    )
     page: int = Query(default=1, description="The page number.")
     limit: int = Query(
         default=10, description="The number of projects per page.", ge=1, le=100
@@ -176,7 +180,6 @@ class ProjectResponse(BaseModel):
                 "completed_at": "2026-01-01T00:00:00Z",
                 "color": "#000000",
                 "is_favorite": False,
-                "is_deleted": False,
                 "created_at": "2026-01-01T00:00:00Z",
                 "updated_at": "2026-01-01T00:00:00Z",
             }
@@ -205,7 +208,6 @@ class ProjectResponse(BaseModel):
     )
     color: Optional[str] = Field(None, description="The color of the project.")
     is_favorite: bool = Field(..., description="Whether project is marked favorite.")
-    is_deleted: bool = Field(..., description="Whether project is soft deleted.")
     created_at: datetime = Field(..., description="Creation timestamp.")
     updated_at: datetime = Field(..., description="Last update timestamp.")
 
@@ -230,7 +232,6 @@ class GetAllProjects200Response(BaseModel):
                         "completed_at": "2026-01-01T00:00:00Z",
                         "color": "#000000",
                         "is_favorite": False,
-                        "is_deleted": False,
                         "created_at": "2026-01-01T00:00:00Z",
                         "updated_at": "2026-01-01T00:00:00Z",
                     }
@@ -266,3 +267,146 @@ class GetProject200Response(ProjectResponse):
             },
         },
     )
+
+
+class ToggleProjectFavorite200Response(BaseModel):
+    """Response model for toggling project favorite status."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "Project favorite status toggled successfully",
+            }
+        },
+    )
+
+    message: str = Field(..., description="The message of the response.")
+
+
+class UpdateProjectRequest(BaseModel):
+    """Request model for updating a project."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "title": "Project Title",
+                "description": "Project Description",
+                "status": ProjectStatusEnum.ACTIVE,
+                "category": ProjectCategoryEnum.WORK,
+                "priority": ProjectPriorityEnum.MEDIUM,
+                "start_date": "2026-01-01",
+                "due_date": "2026-01-01",
+                "color": "#000000",
+            }
+        },
+    )
+
+    title: Optional[str] = Body(
+        None,
+        description=(
+            "The title of the project.\n"
+            "Title must contain only letters, numbers, spaces, hyphens (-), "
+            "underscores (_), periods (.), and apostrophes ('). "
+            "No special characters like @, #, $, %, &, *, etc."
+        ),
+        min_length=1,
+        max_length=255,
+        pattern=r"^[a-zA-Z0-9\s\-_\.\']+$",
+    )
+    description: Optional[str] = Body(
+        None,
+        description="The description of the project.",
+        min_length=1,
+        max_length=2000,
+    )
+    status: Optional[ProjectStatusEnum] = Body(
+        None, description="The status of the project.", enum=ProjectStatusEnum
+    )
+    category: Optional[ProjectCategoryEnum] = Body(
+        None, description="The category of the project.", enum=ProjectCategoryEnum
+    )
+    priority: Optional[ProjectPriorityEnum] = Body(
+        None, description="The priority of the project.", enum=ProjectPriorityEnum
+    )
+    start_date: Optional[date] = Body(
+        None, description="The start date of the project."
+    )
+    due_date: Optional[date] = Body(None, description="The due date of the project.")
+    color: Optional[str] = Body(
+        None,
+        description=(
+            "The color of the project.\n"
+            "Color must be a valid hex color code like #000000, #FFFFFF, etc."
+        ),
+        pattern=r"^#[0-9a-fA-F]{6}$",
+    )
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def clean_title(cls, v: str) -> str:
+        return v.strip()
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def clean_description(cls, v: Optional[str]) -> Optional[str]:
+        if v:
+            return v.strip()
+        return v
+
+    @field_validator("start_date")
+    def validate_start_date(cls, v: Optional[date]) -> Optional[date]:
+        if v and v < date.today():
+            raise RequestValidationError(
+                [
+                    {
+                        "type": "past_date",
+                        "loc": ("body", "start_date"),
+                        "msg": "Start date cannot be in the past",
+                    }
+                ],
+                body=cls.model_json_schema(),
+            )
+        return v
+
+    @field_validator("due_date")
+    def validate_due_date(cls, v: Optional[date]) -> Optional[date]:
+        if v and v < date.today():
+            raise RequestValidationError(
+                [
+                    {
+                        "type": "past_date",
+                        "loc": ("body", "due_date"),
+                        "msg": "Due date cannot be in the past",
+                    }
+                ],
+                body=cls.model_json_schema(),
+            )
+        return v
+
+
+class UpdateProject200Response(BaseModel):
+    """Response model for updating a project."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "Project updated successfully",
+            }
+        },
+    )
+
+    message: str = Field(..., description="The message of the response.")
+
+
+class DeleteProject200Response(BaseModel):
+    """Response model for deleting a project."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "Project deleted successfully",
+            }
+        },
+    )
+
+    message: str = Field(..., description="The message of the response.")

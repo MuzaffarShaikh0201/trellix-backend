@@ -134,11 +134,6 @@ async def swagger_ui_auth(
 
     user = await get_user_by_email(form_data.username, db_session)
 
-    if not user:
-        raise HTTPException(
-            status_code=404, detail="User with this email does not exists."
-        )
-
     if not verify_password(SecretStr(form_data.password), user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 

@@ -84,7 +84,6 @@ class User(Base, TimestampMixin):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
-
     last_logged_in: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.current_timestamp(),

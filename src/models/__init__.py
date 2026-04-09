@@ -27,6 +27,17 @@ from .project import (
     GetAllProjectsRequest,
     GetAllProjects200Response,
     GetProject200Response,
+    ToggleProjectFavorite200Response,
+    UpdateProjectRequest,
+    UpdateProject200Response,
+    DeleteProject200Response,
+)
+from .user import (
+    GetUser200Response,
+    UpdateUserRequest,
+    UpdateUser200Response,
+    UpdateUserPasswordRequest,
+    UpdateUserPassword200Response,
 )
 
 
@@ -54,4 +65,13 @@ __all__ = [
     "GetAllProjectsRequest",
     "GetAllProjects200Response",
     "GetProject200Response",
+    "GetUser200Response",
+    "UpdateUserRequest",
+    "UpdateUser200Response",
+    "UpdateUserPasswordRequest",
+    "UpdateUserPassword200Response",
+    "ToggleProjectFavorite200Response",
+    "UpdateProjectRequest",
+    "UpdateProject200Response",
+    "DeleteProject200Response",
 ]

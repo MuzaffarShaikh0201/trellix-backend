@@ -33,6 +33,7 @@ async def get_all_projects_by_user_id(
     status: ProjectStatusEnum | None,
     category: ProjectCategoryEnum | None,
     priority: ProjectPriorityEnum | None,
+    is_favorite: bool | None,
 ) -> list[Project]:
     """
     Get all projects by user ID (not deleted and not archived).
@@ -48,6 +49,7 @@ async def get_all_projects_by_user_id(
     - status: ProjectStatusEnum | None - The status of the projects.
     - category: ProjectCategoryEnum | None - The category of the projects.
     - priority: ProjectPriorityEnum | None - The priority of the projects.
+    - is_favorite: bool | None - Whether the projects are marked as favorite.
 
     # Returns:
     - list[Project]: The list of projects.
@@ -71,6 +73,8 @@ async def get_all_projects_by_user_id(
             projects_stmt = projects_stmt.where(Project.category == category)
         if priority:
             projects_stmt = projects_stmt.where(Project.priority == priority)
+        if is_favorite is not None:
+            projects_stmt = projects_stmt.where(Project.is_favorite == is_favorite)
 
         # Total items
         count_stmt = select(func.count()).select_from(projects_stmt)
@@ -121,16 +125,16 @@ async def get_project_by_id(
     - Project: The project object.
 
     # Raises:
-    - HTTPException: If the project retrieval fails.
+    - HTTPException: If the project retrieval fails or if the project is not found.
     """
     try:
-        project = await db_session.execute(
-            select(Project).where(
-                Project.id == project_id,
-                Project.is_deleted == False,
-            )
+        project_stmt = select(Project).where(
+            Project.id == project_id,
+            Project.user_id == user_id,
+            Project.is_deleted == False,
         )
-        project = project.scalar_one()
+        project_result = await db_session.execute(project_stmt)
+        project = project_result.scalar_one_or_none()
 
         if not project:
             raise HTTPException(
@@ -138,16 +142,12 @@ async def get_project_by_id(
                 detail="Project not found.",
             )
 
-        if project.user_id != user_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You are not authorized to access this project.",
-            )
-
         logger.info(
             f"Project fetched successfully by ID: {project_id} for user ID: {user_id}"
         )
         return project
+    except HTTPException as e:
+        raise e
     except Exception as e:
         logger.error(f"Error getting project by ID: {str(e)} for user ID: {user_id}")
         raise HTTPException(
@@ -211,4 +211,188 @@ async def create_project(
         raise HTTPException(
             status_code=500,
             detail="Could not create project. Please try again.",
+        )
+
+
+async def toggle_project_favorite_status_by_id(
+    db_session: AsyncSession,
+    user_id: UUID4,
+    project_id: UUID4,
+) -> None:
+    """
+    Toggle project favorite status for the current user.
+
+    # Args:
+    - db_session: AsyncSession - The database session.
+    - user_id: UUID4 - The user ID.
+    - project_id: UUID4 - The ID of the project.
+
+    # Returns:
+    - None: The project favorite status is toggled successfully.
+    """
+    try:
+        project_stmt = select(Project).where(
+            Project.id == project_id,
+            Project.user_id == user_id,
+            Project.is_deleted == False,
+            Project.status != ProjectStatusEnum.ARCHIVED,
+        )
+        project_result = await db_session.execute(project_stmt)
+        project = project_result.scalar_one_or_none()
+
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found.",
+            )
+
+        project.is_favorite = not project.is_favorite
+        await db_session.commit()
+
+        logger.info(
+            f"Project favorite status toggled successfully for project ID: {project_id}"
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(
+            f"Error toggling project favorite status by ID: {str(e)} for project ID: {project_id}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Could not toggle project favorite status. Please try again.",
+        )
+
+
+async def update_project_by_id(
+    db_session: AsyncSession,
+    user_id: UUID4,
+    project_id: UUID4,
+    title: str | None,
+    description: str | None,
+    status: ProjectStatusEnum | None,
+    category: ProjectCategoryEnum | None,
+    priority: ProjectPriorityEnum | None,
+    start_date: date | None,
+    due_date: date | None,
+    color: str | None,
+) -> None:
+    """
+    Update a project by ID for the current user.
+
+    # Args:
+    - db_session: AsyncSession - The database session.
+    - user_id: UUID4 - The user ID.
+    - project_id: UUID4 - The ID of the project.
+    - title: str | None - The title of the project.
+    - description: str | None - The description of the project.
+    - status: ProjectStatusEnum | None - The status of the project.
+    - category: ProjectCategoryEnum | None - The category of the project.
+    - priority: ProjectPriorityEnum | None - The priority of the project.
+    - start_date: date | None - The start date of the project.
+    - due_date: date | None - The due date of the project.
+    - color: str | None - The color of the project.
+
+    # Returns:
+    - None: The project is updated successfully.
+
+    # Raises:
+    - HTTPException: If the project update fails.
+    """
+    try:
+        project_stmt = select(Project).where(
+            Project.id == project_id,
+            Project.user_id == user_id,
+            Project.is_deleted == False,
+            Project.status != ProjectStatusEnum.ARCHIVED,
+        )
+        project_result = await db_session.execute(project_stmt)
+        project = project_result.scalar_one_or_none()
+
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found.",
+            )
+
+        if title:
+            project.title = title
+        if description:
+            project.description = description
+        if status:
+            project.status = status
+        if category:
+            project.category = category
+        if priority:
+            project.priority = priority
+        if start_date:
+            project.start_date = start_date
+        if due_date:
+            project.due_date = due_date
+        if color:
+            project.color = color
+
+        await db_session.commit()
+
+        logger.info(f"Project updated successfully by ID: {project_id}")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(
+            f"Error updating project by ID: {str(e)} for project ID: {project_id}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Could not update project. Please try again.",
+        )
+
+
+async def delete_project_by_id(
+    db_session: AsyncSession,
+    user_id: UUID4,
+    project_id: UUID4,
+) -> None:
+    """
+    Delete a project by ID for the current user.
+
+    # Args:
+    - db_session: AsyncSession - The database session.
+    - user_id: UUID4 - The user ID.
+    - project_id: UUID4 - The ID of the project.
+
+    # Returns:
+    - None: The project is deleted successfully.
+
+    # Raises:
+    - HTTPException: If the project deletion fails.
+    """
+    try:
+        project_stmt = select(Project).where(
+            Project.id == project_id,
+            Project.user_id == user_id,
+            Project.is_deleted == False,
+            Project.status != ProjectStatusEnum.ARCHIVED,
+        )
+        project_result = await db_session.execute(project_stmt)
+        project = project_result.scalar_one_or_none()
+
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found.",
+            )
+
+        project.is_deleted = True
+        await db_session.commit()
+
+        logger.info(f"Project deleted successfully by ID: {project_id}")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(
+            f"Error deleting project by ID: {str(e)} for project ID: {project_id}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Could not delete project. Please try again.",
         )

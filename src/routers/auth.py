@@ -115,11 +115,6 @@ async def login(
 
     user = await get_user_by_email(request.email, db_session)
 
-    if not user:
-        raise HTTPException(
-            status_code=404, detail="User with this email does not exists."
-        )
-
     if not verify_password(request.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
