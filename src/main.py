@@ -6,6 +6,7 @@ import os
 from fastapi import FastAPI
 from typing import AsyncGenerator
 from contextlib import asynccontextmanager
+from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .db import db_manager, redis_manager
@@ -106,6 +107,46 @@ app.openapi = create_custom_openapi_generator(
     docs_summary="Trellix Backend API Documentation",
     docs_description=("Backend services for Trellix Project Manager."),
     docs_tags_metadata=doc_tags_metadata,
+)
+
+
+# Set up CORS (Cross-Origin Resource Sharing)
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+]
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=[
+        "Accept",
+        "Accept-Encoding",
+        "Accept-Language",
+        "Authorization",
+        "Connection",
+        "Connection-Length",
+        "Connection-Type",
+        "Keep-Alive",
+        "Content-Length",
+        "Content-Type",
+        "Cookie",
+        "Date",
+        "Host",
+        "Origin",
+        "Referer",
+        "Sec-Fetch-Dest",
+        "Sec-Fetch-Mode",
+        "Sec-Fetch-Site",
+        "User-Agent",
+        "Sec-Ch-Ua-Mobile",
+        "Sec-Ch-Ua-Platform",
+    ],
 )
 
 
