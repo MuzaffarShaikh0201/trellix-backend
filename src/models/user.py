@@ -17,6 +17,7 @@ class GetUser200Response(BaseModel):
     """Response model for getting a user by ID."""
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": {
                 "id": "12345678-9012-3456-7890-123456789012",
