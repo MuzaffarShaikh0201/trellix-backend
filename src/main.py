@@ -105,7 +105,10 @@ app.openapi = create_custom_openapi_generator(
     app=app,
     env_config=settings,
     docs_summary="Trellix Backend API Documentation",
-    docs_description=("Backend services for Trellix Project Manager."),
+    docs_description=(
+        "Backend APIs for Trellix Project Manager.\n"
+        f"Frontend URL: {settings.frontend_url}"
+    ),
     docs_tags_metadata=doc_tags_metadata,
 )
 
@@ -116,6 +119,7 @@ origins = [
     "http://127.0.0.1:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5174",
+    f"{settings.frontend_url}",
 ]
 
 

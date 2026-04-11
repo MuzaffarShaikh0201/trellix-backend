@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     app_name: str = Field(..., description="Application name")
     app_version: str = Field(..., description="Application version")
     base_url: str = Field(..., description="Base URL")
+    frontend_url: str = Field(..., description="Frontend URL")
     log_level: str = Field(..., description="Logging level")
     support_email: str = Field(..., description="Support email")
 
