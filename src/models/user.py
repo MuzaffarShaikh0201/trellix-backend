@@ -48,34 +48,20 @@ class GetUser200Response(BaseModel):
     updated_at: datetime = Field(..., description="The last update date of the user.")
 
 
-class UpdateUserRequest(BaseModel):
-    """Request model for updating a user."""
+class UpdateUserParams:
+    """Parameters for updating a user."""
 
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "first_name": "John",
-                "last_name": "Doe",
-            }
-        },
-    )
-
-    first_name: Optional[str] = Body(
-        None, description="The first name of the user.", min_length=1, max_length=32
-    )
-    last_name: Optional[str] = Body(
-        None, description="The last name of the user.", min_length=1, max_length=32
-    )
-
-    @field_validator("first_name")
-    @classmethod
-    def validate_first_name(cls, first_name: Optional[str]) -> Optional[str]:
-        return validate_name(first_name, "first_name")
-
-    @field_validator("last_name")
-    @classmethod
-    def validate_last_name(cls, last_name: Optional[str]) -> Optional[str]:
-        return validate_name(last_name, "last_name")
+    def __init__(
+        self,
+        first_name: Optional[str] = Body(
+            None, description="The first name of the user.", min_length=1, max_length=32
+        ),
+        last_name: Optional[str] = Body(
+            None, description="The last name of the user.", min_length=1, max_length=32
+        ),
+    ) -> None:
+        self.first_name = validate_name(first_name, "first_name")
+        self.last_name = validate_name(last_name, "last_name")
 
 
 class UpdateUser200Response(BaseModel):
@@ -92,32 +78,26 @@ class UpdateUser200Response(BaseModel):
     message: str = Field(..., description="The message of the response.")
 
 
-class UpdateUserPasswordRequest(BaseModel):
-    """Request model for updating a user password."""
+class UpdateUserPasswordParams:
+    """Parameters for updating a user password."""
 
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "current_password": "********",
-                "new_password": "********",
-            }
-        },
-    )
-
-    current_password: SecretStr = Form(
-        ..., description="The current password of the user."
-    )
-    new_password: SecretStr = Form(..., description="The new password of the user.")
-
-    @field_validator("current_password")
-    @classmethod
-    def validate_current_password(cls, current_password: SecretStr) -> SecretStr:
-        return validate_password(current_password)
-
-    @field_validator("new_password")
-    @classmethod
-    def validate_new_password(cls, new_password: SecretStr) -> SecretStr:
-        return validate_password(new_password)
+    def __init__(
+        self,
+        current_password: SecretStr = Form(
+            ...,
+            description="The current password of the user.",
+            min_length=8,
+            max_length=20,
+        ),
+        new_password: SecretStr = Form(
+            ...,
+            description="The new password of the user.",
+            min_length=8,
+            max_length=20,
+        ),
+    ) -> None:
+        self.current_password = validate_password(current_password)
+        self.new_password = validate_password(new_password)
 
 
 class UpdateUserPassword200Response(BaseModel):

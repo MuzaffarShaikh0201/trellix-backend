@@ -13,10 +13,10 @@ from ..auth import bearer_header_auth
 from ..services import get_user_by_id, hash_password, verify_password
 from ..models import (
     UpdateUserPassword200Response,
-    UpdateUserPasswordRequest,
+    UpdateUserPasswordParams,
     UserCreds,
     GetUser200Response,
-    UpdateUserRequest,
+    UpdateUserParams,
     UpdateUser200Response,
 )
 
@@ -67,7 +67,7 @@ async def get_user(
     response_model=UpdateUser200Response,
 )
 async def update_user(
-    request_data: UpdateUserRequest = Depends(),
+    params: UpdateUserParams = Depends(),
     user_creds: UserCreds = Depends(bearer_header_auth),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
@@ -75,7 +75,7 @@ async def update_user(
     Update user for the current user.
 
     # Args:
-    - request_data: UpdateUserRequest - The request object.
+    - params: UpdateUserParams - The request object.
     - user_creds: UserCreds - The user credentials from the bearer header authentication.
     - db_session: AsyncSession - The database session.
 
@@ -90,11 +90,11 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    if request_data.first_name:
-        user.first_name = request_data.first_name
+    if params.first_name:
+        user.first_name = params.first_name
 
-    if request_data.last_name:
-        user.last_name = request_data.last_name
+    if params.last_name:
+        user.last_name = params.last_name
 
     await db_session.commit()
 
@@ -116,7 +116,7 @@ async def update_user(
     response_model=UpdateUserPassword200Response,
 )
 async def update_user_password(
-    request_data: UpdateUserPasswordRequest = Depends(),
+    params: UpdateUserPasswordParams = Depends(),
     user_creds: UserCreds = Depends(bearer_header_auth),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
@@ -124,7 +124,7 @@ async def update_user_password(
     Update user password for the current user.
 
     # Args:
-    - request_data: UpdateUserPasswordRequest - The request object.
+    - params: UpdateUserPasswordParams - The request object.
     - user_creds: UserCreds - The user credentials from the bearer header authentication.
     - db_session: AsyncSession - The database session.
 
@@ -139,10 +139,10 @@ async def update_user_password(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    if not verify_password(request_data.current_password, user.hashed_password):
+    if not verify_password(params.current_password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid current password.")
 
-    user.hashed_password = hash_password(request_data.new_password.get_secret_value())
+    user.hashed_password = hash_password(params.new_password.get_secret_value())
 
     await db_session.commit()
 

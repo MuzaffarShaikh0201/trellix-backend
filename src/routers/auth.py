@@ -21,12 +21,12 @@ from ..services import (
 )
 from ..models import (
     Login200Response,
-    LoginRequest,
+    LoginParams,
     Logout200Response,
-    RegisterRequest,
+    RegisterParams,
     Register201Response,
     SessionData,
-    RefreshRequest,
+    RefreshParams,
     Refresh200Response,
     UserCreds,
 )
@@ -44,14 +44,15 @@ router = APIRouter(tags=["Authentication APIs"])
     response_model=Register201Response,
 )
 async def register(
-    request: RegisterRequest = Depends(),
+    params: RegisterParams = Depends(),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
     """
     Register a new user with email and password.
 
     # Args:
-    - request: RegisterRequest - The request object.
+    - params: RegisterParams - The request parameters.
+    - db_session: AsyncSession - The database session.
 
     # Returns:
     - JSONResponse: A JSON response containing the user information.
@@ -62,7 +63,7 @@ async def register(
 
     logger.info("POST /register - Register a new user endpoint called")
 
-    user = await get_user_by_email(request.email, db_session)
+    user = await get_user_by_email(params.email, db_session)
 
     if user:
         raise HTTPException(
@@ -71,10 +72,10 @@ async def register(
 
     user = await create_user(
         db_session=db_session,
-        email=request.email,
-        first_name=request.first_name,
-        last_name=request.last_name,
-        hashed_password=hash_password(request.password.get_secret_value()),
+        email=params.email,
+        first_name=params.first_name,
+        last_name=params.last_name,
+        hashed_password=hash_password(params.password.get_secret_value()),
     )
 
     logger.info("POST /register - Response: 201 Created - User registered successfully")
@@ -95,7 +96,7 @@ async def register(
     response_model=Login200Response,
 )
 async def login(
-    request: LoginRequest = Depends(),
+    params: LoginParams = Depends(),
     db_session: AsyncSession = Depends(get_db_session),
     session_store: SessionStoreType = Depends(get_session_store),
 ) -> JSONResponse:
@@ -103,7 +104,7 @@ async def login(
     User login with email and password.
 
     # Args:
-    - request: LoginRequest - The request object.
+    - params: LoginParams - The request parameters.
     - db_session: AsyncSession - The database session.
     - session_store: SessionStoreType - The session store.
 
@@ -113,9 +114,9 @@ async def login(
 
     logger.info("POST /login - User login endpoint called")
 
-    user = await get_user_by_email(request.email, db_session)
+    user = await get_user_by_email(params.email, db_session)
 
-    if not verify_password(request.password, user.hashed_password):
+    if not verify_password(params.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
     active_session = await session_store.get_user_session(user.id)
@@ -159,7 +160,7 @@ async def login(
     response_model=Refresh200Response,
 )
 async def refresh(
-    request: RefreshRequest = Depends(),
+    params: RefreshParams = Depends(),
     user_creds: UserCreds = Depends(bearer_header_auth),
     session_store: SessionStoreType = Depends(get_session_store),
 ) -> JSONResponse:
@@ -167,7 +168,7 @@ async def refresh(
     Refresh access token with refresh token.
 
     # Args:
-    - request: RefreshRequest - The request object.
+    - params: RefreshParams - The request parameters.
     - user_creds: UserCreds - The user credentials from the bearer header authentication.
     - session_store: SessionStoreType - The session store.
 
@@ -183,7 +184,7 @@ async def refresh(
         raise HTTPException(status_code=401, detail="Session data not found.")
 
     refresh_token_claims = verify_refresh_token(
-        request.refresh_token, session_data.access_token
+        params.refresh_token, session_data.access_token
     )
 
     if (

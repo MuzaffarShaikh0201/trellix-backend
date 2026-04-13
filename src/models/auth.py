@@ -124,39 +124,22 @@ def validate_name(name: str, field_name: str) -> str:
     return name.strip()
 
 
-class RegisterRequest(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "first_name": "John",
-                "last_name": "Doe",
-                "email": "test@example.com",
-                "password": "********",
-            }
-        },
-    )
+class RegisterParams:
+    """Parameters for registering a new user."""
 
-    first_name: str = Form(..., description="The first name of the user.")
-    last_name: str = Form(..., description="The last name of the user.")
-    email: EmailStr = Form(..., description="The email of the user.")
-    password: SecretStr = Form(
-        ..., description="The password of the user.", min_length=8, max_length=20
-    )
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, password: SecretStr) -> SecretStr:
-        return validate_password(password)
-
-    @field_validator("first_name")
-    @classmethod
-    def validate_first_name(cls, first_name: str) -> str:
-        return validate_name(first_name, "first_name")
-
-    @field_validator("last_name")
-    @classmethod
-    def validate_last_name(cls, last_name: str) -> str:
-        return validate_name(last_name, "last_name")
+    def __init__(
+        self,
+        first_name: str = Form(..., description="The first name of the user."),
+        last_name: str = Form(..., description="The last name of the user."),
+        email: EmailStr = Form(..., description="The email of the user."),
+        password: SecretStr = Form(
+            ..., description="The password of the user.", min_length=8, max_length=20
+        ),
+    ) -> None:
+        self.first_name = validate_name(first_name, "first_name")
+        self.last_name = validate_name(last_name, "last_name")
+        self.email = email
+        self.password = validate_password(password)
 
 
 class Register201Response(BaseModel):
@@ -210,24 +193,18 @@ class UserCreds(BaseModel):
     user_id: UUID4 = Field(..., description="The user ID.")
 
 
-class LoginRequest(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "email": "test@example.com",
-                "password": "********",
-            }
-        },
-    )
-    email: EmailStr = Form(..., description="The email of the user.")
-    password: SecretStr = Form(
-        ..., description="The password of the user.", min_length=8, max_length=20
-    )
+class LoginParams:
+    """Parameters for logging in a user."""
 
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, password: SecretStr) -> SecretStr:
-        return validate_password(password)
+    def __init__(
+        self,
+        email: EmailStr = Form(..., description="The email of the user."),
+        password: SecretStr = Form(
+            ..., description="The password of the user.", min_length=8, max_length=20
+        ),
+    ) -> None:
+        self.email = email
+        self.password = validate_password(password)
 
 
 class Login200Response(BaseModel):
@@ -245,15 +222,14 @@ class Login200Response(BaseModel):
     session_id: UUID4 = Field(..., description="The ID of the session.")
 
 
-class RefreshRequest(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "refresh_token": "12345678901234567890123456789012",
-            }
-        },
-    )
-    refresh_token: str = Form(..., description="The refresh token of the user.")
+class RefreshParams:
+    """Parameters for refreshing a user's session."""
+
+    def __init__(
+        self,
+        refresh_token: str = Form(..., description="The refresh token of the user."),
+    ) -> None:
+        self.refresh_token = refresh_token
 
 
 class Refresh200Response(BaseModel):

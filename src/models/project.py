@@ -13,101 +13,63 @@ from pydantic import UUID4, BaseModel, Field, ConfigDict, field_validator
 from .enums import ProjectCategoryEnum, ProjectPriorityEnum, ProjectStatusEnum
 
 
-class CreateProjectRequest(BaseModel):
-    """Request model for creating a new project."""
+class CreateProjectParams:
+    """Parameters for creating a new project."""
 
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "title": "Project Title",
-                "description": "Project Description",
-                "category": ProjectCategoryEnum.WORK,
-                "priority": ProjectPriorityEnum.MEDIUM,
-                "start_date": "2026-01-01",
-                "due_date": "2026-01-01",
-                "color": "#000000",
-            }
-        },
-    )
-
-    title: str = Body(
-        ...,
-        description=(
-            "The title of the project.\n"
-            "Title must contain only letters, numbers, spaces, hyphens (-), "
-            "underscores (_), periods (.), and apostrophes ('). "
-            "No special characters like @, #, $, %, &, *, etc."
+    def __init__(
+        self,
+        title: str = Body(
+            ...,
+            description=(
+                "The title of the project.\n"
+                "Title must contain only letters, numbers, spaces, hyphens (-), "
+                "underscores (_), periods (.), and apostrophes ('). "
+                "No special characters like @, #, $, %, &, *, etc."
+            ),
+            min_length=1,
+            max_length=255,
+            pattern=r"^[a-zA-Z0-9\s\-_\.\']+$",
         ),
-        min_length=1,
-        max_length=255,
-        pattern=r"^[a-zA-Z0-9\s\-_\.\']+$",
-    )
-    description: Optional[str] = Body(
-        None,
-        description="The description of the project.",
-        min_length=1,
-        max_length=2000,
-    )
-    category: ProjectCategoryEnum = Body(
-        ..., description="The category of the project."
-    )
-    priority: ProjectPriorityEnum = Body(
-        ..., description="The priority of the project."
-    )
-    start_date: Optional[date] = Body(
-        None, description="The start date of the project."
-    )
-    due_date: Optional[date] = Body(None, description="The due date of the project.")
-    color: Optional[str] = Body(
-        None,
-        description=(
-            "The color of the project.\n"
-            "Color must be a valid hex color code like #000000, #FFFFFF, etc."
+        description: Optional[str] = Body(
+            None,
+            description="The description of the project.",
+            min_length=1,
+            max_length=2000,
         ),
-        pattern=r"^#[0-9a-fA-F]{6}$",
-    )
-
-    @field_validator("title", mode="before")
-    @classmethod
-    def clean_title(cls, v: str) -> str:
-        return v.strip()
-
-    @field_validator("description", mode="before")
-    @classmethod
-    def clean_description(cls, v: Optional[str]) -> Optional[str]:
-        if v:
-            return v.strip()
-        return v
-
-    @field_validator("start_date")
-    def validate_start_date(cls, v: Optional[date]) -> Optional[date]:
-        if v and v < date.today():
-            raise RequestValidationError(
-                [
-                    {
-                        "type": "past_date",
-                        "loc": ("body", "start_date"),
-                        "msg": "Start date cannot be in the past",
-                    }
-                ],
-                body=cls.model_json_schema(),
-            )
-        return v
-
-    @field_validator("due_date")
-    def validate_due_date(cls, v: Optional[date]) -> Optional[date]:
-        if v and v < date.today():
-            raise RequestValidationError(
-                [
-                    {
-                        "type": "past_date",
-                        "loc": ("body", "due_date"),
-                        "msg": "Due date cannot be in the past",
-                    }
-                ],
-                body=cls.model_json_schema(),
-            )
-        return v
+        category: ProjectCategoryEnum = Body(
+            ...,
+            description="The category of the project.",
+        ),
+        priority: ProjectPriorityEnum = Body(
+            ...,
+            description="The priority of the project.",
+        ),
+        start_date: Optional[date] = Body(
+            None,
+            description="The start date of the project.",
+            ge=date.today(),
+        ),
+        due_date: Optional[date] = Body(
+            None,
+            description="The due date of the project.",
+            ge=date.today(),
+        ),
+        color: Optional[str] = Body(
+            None,
+            description=(
+                "The color of the project.\n"
+                "Color must be a valid hex color code like #000000, #FFFFFF, etc."
+            ),
+            pattern=r"^#[0-9a-fA-F]{6}$",
+        ),
+    ) -> None:
+        self.title = title.strip()
+        self.description = description.strip() if description else None
+        self.category = category
+        self.priority = priority
+        self.start_date = start_date
+        self.due_date = due_date
+        self.color = color.strip() if color else None
 
 
 class CreateProject201Response(BaseModel):
@@ -124,41 +86,50 @@ class CreateProject201Response(BaseModel):
     project_id: UUID4 = Field(..., description="The ID of the created project.")
 
 
-class GetAllProjectsRequest(BaseModel):
-    """Request model for getting all projects."""
+class GetAllProjectsParams:
+    """Parameters for getting all projects."""
 
-    model_config = ConfigDict(from_attributes=True)
-
-    status: Optional[ProjectStatusEnum] = Query(
-        None,
-        description="The status of the projects.",
-    )
-    category: Optional[ProjectCategoryEnum] = Query(
-        None,
-        description="The category of the projects.",
-    )
-    priority: Optional[ProjectPriorityEnum] = Query(
-        None,
-        description="The priority of the projects.",
-    )
-    is_favorite: Optional[bool] = Query(
-        None,
-        description="Whether the projects are marked as favorite.",
-    )
-    page: int = Query(default=1, description="The page number.")
-    limit: int = Query(
-        default=10, description="The number of projects per page.", ge=1, le=100
-    )
-    sort_by: Literal["title", "created_at", "updated_at"] = Query(
-        default="updated_at",
-        description="The field to sort by.",
-        enum=["title", "created_at", "updated_at"],
-    )
-    sort_order: Literal["asc", "desc"] = Query(
-        default="desc",
-        description="The order to sort by.",
-        enum=["asc", "desc"],
-    )
+    def __init__(
+        self,
+        status: Optional[ProjectStatusEnum] = Query(
+            None,
+            description="The status of the projects.",
+        ),
+        category: Optional[ProjectCategoryEnum] = Query(
+            None,
+            description="The category of the projects.",
+        ),
+        priority: Optional[ProjectPriorityEnum] = Query(
+            None,
+            description="The priority of the projects.",
+        ),
+        is_favorite: Optional[bool] = Query(
+            None,
+            description="Whether the projects are marked as favorite.",
+        ),
+        page: int = Query(default=1, description="The page number."),
+        limit: int = Query(
+            default=10, description="The number of projects per page.", ge=1, le=100
+        ),
+        sort_by: Literal["title", "created_at", "updated_at"] = Query(
+            default="updated_at",
+            description="The field to sort by.",
+            enum=["title", "created_at", "updated_at"],
+        ),
+        sort_order: Literal["asc", "desc"] = Query(
+            default="desc",
+            description="The order to sort by.",
+            enum=["asc", "desc"],
+        ),
+    ) -> None:
+        self.status = status.value if status else None
+        self.category = category.value if category else None
+        self.priority = priority.value if priority else None
+        self.is_favorite = is_favorite
+        self.page = page
+        self.limit = limit
+        self.sort_by = sort_by
+        self.sort_order = sort_order
 
 
 class ProjectResponse(BaseModel):
@@ -283,105 +254,67 @@ class ToggleProjectFavorite200Response(BaseModel):
     message: str = Field(..., description="The message of the response.")
 
 
-class UpdateProjectRequest(BaseModel):
-    """Request model for updating a project."""
+class UpdateProjectParams:
+    """Parameters for updating a project."""
 
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "title": "Project Title",
-                "description": "Project Description",
-                "status": ProjectStatusEnum.ACTIVE,
-                "category": ProjectCategoryEnum.WORK,
-                "priority": ProjectPriorityEnum.MEDIUM,
-                "start_date": "2026-01-01",
-                "due_date": "2026-01-01",
-                "color": "#000000",
-            }
-        },
-    )
-
-    title: Optional[str] = Body(
-        None,
-        description=(
-            "The title of the project.\n"
-            "Title must contain only letters, numbers, spaces, hyphens (-), "
-            "underscores (_), periods (.), and apostrophes ('). "
-            "No special characters like @, #, $, %, &, *, etc."
+    def __init__(
+        self,
+        project_id: UUID4 = Path(..., description="The ID of the project."),
+        title: Optional[str] = Body(
+            None,
+            description=(
+                "The title of the project.\n"
+                "Title must contain only letters, numbers, spaces, hyphens (-), "
+                "underscores (_), periods (.), and apostrophes ('). "
+                "No special characters like @, #, $, %, &, *, etc."
+            ),
+            min_length=1,
+            max_length=255,
+            pattern=r"^[a-zA-Z0-9\s\-_\.\']+$",
         ),
-        min_length=1,
-        max_length=255,
-        pattern=r"^[a-zA-Z0-9\s\-_\.\']+$",
-    )
-    description: Optional[str] = Body(
-        None,
-        description="The description of the project.",
-        min_length=1,
-        max_length=2000,
-    )
-    status: Optional[ProjectStatusEnum] = Body(
-        None, description="The status of the project.", enum=ProjectStatusEnum
-    )
-    category: Optional[ProjectCategoryEnum] = Body(
-        None, description="The category of the project.", enum=ProjectCategoryEnum
-    )
-    priority: Optional[ProjectPriorityEnum] = Body(
-        None, description="The priority of the project.", enum=ProjectPriorityEnum
-    )
-    start_date: Optional[date] = Body(
-        None, description="The start date of the project."
-    )
-    due_date: Optional[date] = Body(None, description="The due date of the project.")
-    color: Optional[str] = Body(
-        None,
-        description=(
-            "The color of the project.\n"
-            "Color must be a valid hex color code like #000000, #FFFFFF, etc."
+        description: Optional[str] = Body(
+            None,
+            description="The description of the project.",
+            min_length=1,
+            max_length=2000,
         ),
-        pattern=r"^#[0-9a-fA-F]{6}$",
-    )
-
-    @field_validator("title", mode="before")
-    @classmethod
-    def clean_title(cls, v: str) -> str:
-        return v.strip()
-
-    @field_validator("description", mode="before")
-    @classmethod
-    def clean_description(cls, v: Optional[str]) -> Optional[str]:
-        if v:
-            return v.strip()
-        return v
-
-    @field_validator("start_date")
-    def validate_start_date(cls, v: Optional[date]) -> Optional[date]:
-        if v and v < date.today():
-            raise RequestValidationError(
-                [
-                    {
-                        "type": "past_date",
-                        "loc": ("body", "start_date"),
-                        "msg": "Start date cannot be in the past",
-                    }
-                ],
-                body=cls.model_json_schema(),
-            )
-        return v
-
-    @field_validator("due_date")
-    def validate_due_date(cls, v: Optional[date]) -> Optional[date]:
-        if v and v < date.today():
-            raise RequestValidationError(
-                [
-                    {
-                        "type": "past_date",
-                        "loc": ("body", "due_date"),
-                        "msg": "Due date cannot be in the past",
-                    }
-                ],
-                body=cls.model_json_schema(),
-            )
-        return v
+        status: Optional[ProjectStatusEnum] = Body(
+            None, description="The status of the project."
+        ),
+        category: Optional[ProjectCategoryEnum] = Body(
+            None, description="The category of the project."
+        ),
+        priority: Optional[ProjectPriorityEnum] = Body(
+            None, description="The priority of the project."
+        ),
+        start_date: Optional[date] = Body(
+            None,
+            description="The start date of the project.",
+            ge=date.today(),
+        ),
+        due_date: Optional[date] = Body(
+            None,
+            description="The due date of the project.",
+            ge=date.today(),
+        ),
+        color: Optional[str] = Body(
+            None,
+            description=(
+                "The color of the project.\n"
+                "Color must be a valid hex color code like #000000, #FFFFFF, etc."
+            ),
+            pattern=r"^#[0-9a-fA-F]{6}$",
+        ),
+    ) -> None:
+        self.project_id = project_id
+        self.title = title.strip() if title else None
+        self.description = description.strip() if description else None
+        self.status = status.value if status else None
+        self.category = category.value if category else None
+        self.priority = priority.value if priority else None
+        self.start_date = start_date if start_date else None
+        self.due_date = due_date if due_date else None
+        self.color = color.strip() if color else None
 
 
 class UpdateProject200Response(BaseModel):

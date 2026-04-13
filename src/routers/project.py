@@ -19,15 +19,15 @@ from ..services import (
     delete_project_by_id,
 )
 from ..models import (
-    CreateProjectRequest,
+    CreateProjectParams,
     CreateProject201Response,
     DeleteProject200Response,
-    GetAllProjectsRequest,
+    GetAllProjectsParams,
     UserCreds,
     GetAllProjects200Response,
     GetProject200Response,
     ToggleProjectFavorite200Response,
-    UpdateProjectRequest,
+    UpdateProjectParams,
     UpdateProject200Response,
 )
 
@@ -46,7 +46,7 @@ router = APIRouter(tags=["Project APIs"], prefix="/project")
     response_model=GetAllProjects200Response,
 )
 async def get_all_projects(
-    request_data: GetAllProjectsRequest = Depends(),
+    params: GetAllProjectsParams = Depends(),
     user_creds: UserCreds = Depends(bearer_header_auth),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
@@ -54,7 +54,7 @@ async def get_all_projects(
     Get all projects for the current user (not deleted and not archived).
 
     # Args:
-    - request_data: GetAllProjectsRequest - The request data object.
+    - params: GetAllProjectsRequest - The request data object.
     - user_creds: UserCreds - The user credentials from the bearer header authentication.
     - db_session: AsyncSession - The database session.
 
@@ -67,14 +67,14 @@ async def get_all_projects(
     projects, total_pages, total_items = await get_all_projects_by_user_id(
         db_session=db_session,
         user_id=user_creds.user_id,
-        page=request_data.page,
-        limit=request_data.limit,
-        sort_by=request_data.sort_by,
-        sort_order=request_data.sort_order,
-        status=request_data.status,
-        category=request_data.category,
-        priority=request_data.priority,
-        is_favorite=request_data.is_favorite,
+        page=params.page,
+        limit=params.limit,
+        sort_by=params.sort_by,
+        sort_order=params.sort_order,
+        status=params.status,
+        category=params.category,
+        priority=params.priority,
+        is_favorite=params.is_favorite,
     )
 
     logger.info("GET /project - Response: 200 OK - Projects fetched successfully")
@@ -85,8 +85,8 @@ async def get_all_projects(
             projects=projects,
             total_pages=total_pages,
             total_items=total_items,
-            current_page=request_data.page,
-            items_per_page=request_data.limit,
+            current_page=params.page,
+            items_per_page=params.limit,
         ).model_dump(mode="json"),
     )
 
@@ -141,7 +141,7 @@ async def get_project(
     response_model=CreateProject201Response,
 )
 async def create_new_project(
-    request_data: CreateProjectRequest = Depends(),
+    params: CreateProjectParams = Depends(),
     user_creds: UserCreds = Depends(bearer_header_auth),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
@@ -149,7 +149,7 @@ async def create_new_project(
     Create new project for the current user with the given request data.
 
     # Args:
-    - request_data: CreateProjectRequest - The request data object.
+    - params: CreateProjectParams - The request data object.
     - user_creds: UserCreds - The user credentials from the bearer header authentication.
     - db_session: AsyncSession - The database session.
 
@@ -162,13 +162,13 @@ async def create_new_project(
     project = await create_project(
         db_session=db_session,
         user_creds=user_creds,
-        title=request_data.title,
-        description=request_data.description,
-        category=request_data.category,
-        priority=request_data.priority,
-        start_date=request_data.start_date,
-        due_date=request_data.due_date,
-        color=request_data.color,
+        title=params.title,
+        description=params.description,
+        category=params.category,
+        priority=params.priority,
+        start_date=params.start_date,
+        due_date=params.due_date,
+        color=params.color,
     )
 
     logger.info(
@@ -191,8 +191,7 @@ async def create_new_project(
     response_model=UpdateProject200Response,
 )
 async def update_project(
-    project_id: UUID4 = Path(..., description="The ID of the project."),
-    request_data: UpdateProjectRequest = Depends(),
+    params: UpdateProjectParams = Depends(),
     user_creds: UserCreds = Depends(bearer_header_auth),
     db_session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
@@ -201,7 +200,7 @@ async def update_project(
 
     # Args:
     - project_id: UUID4 - The ID of the project.
-    - request_data: UpdateProjectRequest - The request data object.
+    - params: UpdateProjectRequest - The request data object.
     - user_creds: UserCreds - The user credentials from the bearer header authentication.
     - db_session: AsyncSession - The database session.
 
@@ -214,15 +213,15 @@ async def update_project(
     await update_project_by_id(
         db_session=db_session,
         user_id=user_creds.user_id,
-        project_id=project_id,
-        title=request_data.title,
-        description=request_data.description,
-        status=request_data.status,
-        category=request_data.category,
-        priority=request_data.priority,
-        start_date=request_data.start_date,
-        due_date=request_data.due_date,
-        color=request_data.color,
+        project_id=params.project_id,
+        title=params.title,
+        description=params.description,
+        status=params.status,
+        category=params.category,
+        priority=params.priority,
+        start_date=params.start_date,
+        due_date=params.due_date,
+        color=params.color,
     )
 
     logger.info(
