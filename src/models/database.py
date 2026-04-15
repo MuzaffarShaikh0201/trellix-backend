@@ -23,7 +23,6 @@ from ..config import settings
 from .enums import (
     AuthTypeEnum,
     ProjectCategoryEnum,
-    ProjectPriorityEnum,
     ProjectStatusEnum,
 )
 
@@ -137,16 +136,6 @@ class Project(Base, TimestampMixin):
             values_callable=lambda obj: [e.value for e in obj],
         ),
         default=ProjectCategoryEnum.OTHER,
-        nullable=False,
-    )
-    priority: Mapped[ProjectPriorityEnum] = mapped_column(
-        Enum(
-            ProjectPriorityEnum,
-            name="project_priority_enum",
-            schema=_ORM_SCHEMA,
-            values_callable=lambda obj: [e.value for e in obj],
-        ),
-        default=ProjectPriorityEnum.MEDIUM,
         nullable=False,
     )
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)

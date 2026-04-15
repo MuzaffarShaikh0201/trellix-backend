@@ -15,7 +15,6 @@ from ..models import (
     ProjectStatusEnum,
     UserCreds,
     ProjectCategoryEnum,
-    ProjectPriorityEnum,
     Project,
 )
 
@@ -32,7 +31,6 @@ async def get_all_projects_by_user_id(
     sort_order: str,
     status: ProjectStatusEnum | None,
     category: ProjectCategoryEnum | None,
-    priority: ProjectPriorityEnum | None,
     is_favorite: bool | None,
 ) -> list[Project]:
     """
@@ -48,7 +46,6 @@ async def get_all_projects_by_user_id(
     - sort_order: str - The order to sort by.
     - status: ProjectStatusEnum | None - The status of the projects.
     - category: ProjectCategoryEnum | None - The category of the projects.
-    - priority: ProjectPriorityEnum | None - The priority of the projects.
     - is_favorite: bool | None - Whether the projects are marked as favorite.
 
     # Returns:
@@ -71,8 +68,6 @@ async def get_all_projects_by_user_id(
             projects_stmt = projects_stmt.where(Project.status == status)
         if category:
             projects_stmt = projects_stmt.where(Project.category == category)
-        if priority:
-            projects_stmt = projects_stmt.where(Project.priority == priority)
         if is_favorite is not None:
             projects_stmt = projects_stmt.where(Project.is_favorite == is_favorite)
 
@@ -163,7 +158,6 @@ async def create_project(
     title: str,
     description: str | None,
     category: ProjectCategoryEnum,
-    priority: ProjectPriorityEnum,
     start_date: date | None,
     due_date: date | None,
     color: str | None,
@@ -195,7 +189,6 @@ async def create_project(
             description=description,
             status=status,
             category=category,
-            priority=priority,
             start_date=start_date,
             due_date=due_date,
             color=color,
@@ -272,7 +265,6 @@ async def update_project_by_id(
     description: str | None,
     status: ProjectStatusEnum | None,
     category: ProjectCategoryEnum | None,
-    priority: ProjectPriorityEnum | None,
     start_date: date | None,
     due_date: date | None,
     color: str | None,
@@ -288,7 +280,6 @@ async def update_project_by_id(
     - description: str | None - The description of the project.
     - status: ProjectStatusEnum | None - The status of the project.
     - category: ProjectCategoryEnum | None - The category of the project.
-    - priority: ProjectPriorityEnum | None - The priority of the project.
     - start_date: date | None - The start date of the project.
     - due_date: date | None - The due date of the project.
     - color: str | None - The color of the project.
@@ -323,8 +314,6 @@ async def update_project_by_id(
             project.status = status
         if category:
             project.category = category
-        if priority:
-            project.priority = priority
         if start_date:
             project.start_date = start_date
         if due_date:

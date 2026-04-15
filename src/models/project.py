@@ -10,7 +10,7 @@ from fastapi import Body, Query, Path
 from fastapi.exceptions import RequestValidationError
 from pydantic import UUID4, BaseModel, Field, ConfigDict, field_validator
 
-from .enums import ProjectCategoryEnum, ProjectPriorityEnum, ProjectStatusEnum
+from .enums import ProjectCategoryEnum, ProjectStatusEnum
 
 
 class CreateProjectParams:
@@ -40,10 +40,6 @@ class CreateProjectParams:
             ...,
             description="The category of the project.",
         ),
-        priority: ProjectPriorityEnum = Body(
-            ...,
-            description="The priority of the project.",
-        ),
         start_date: Optional[date] = Body(
             None,
             description="The start date of the project.",
@@ -66,7 +62,6 @@ class CreateProjectParams:
         self.title = title.strip()
         self.description = description.strip() if description else None
         self.category = category
-        self.priority = priority
         self.start_date = start_date
         self.due_date = due_date
         self.color = color.strip() if color else None
@@ -99,10 +94,6 @@ class GetAllProjectsParams:
             None,
             description="The category of the projects.",
         ),
-        priority: Optional[ProjectPriorityEnum] = Query(
-            None,
-            description="The priority of the projects.",
-        ),
         is_favorite: Optional[bool] = Query(
             None,
             description="Whether the projects are marked as favorite.",
@@ -124,7 +115,6 @@ class GetAllProjectsParams:
     ) -> None:
         self.status = status.value if status else None
         self.category = category.value if category else None
-        self.priority = priority.value if priority else None
         self.is_favorite = is_favorite
         self.page = page
         self.limit = limit
@@ -145,7 +135,6 @@ class ProjectResponse(BaseModel):
                 "description": "Project Description",
                 "status": ProjectStatusEnum.ACTIVE.value,
                 "category": ProjectCategoryEnum.WORK.value,
-                "priority": ProjectPriorityEnum.MEDIUM.value,
                 "start_date": "2026-01-01",
                 "due_date": "2026-01-01",
                 "completed_at": "2026-01-01T00:00:00Z",
@@ -166,9 +155,6 @@ class ProjectResponse(BaseModel):
     status: ProjectStatusEnum = Field(..., description="The status of the project.")
     category: ProjectCategoryEnum = Field(
         ..., description="The category of the project."
-    )
-    priority: ProjectPriorityEnum = Field(
-        ..., description="The priority of the project."
     )
     start_date: Optional[date] = Field(
         None, description="The start date of the project."
@@ -197,7 +183,6 @@ class GetAllProjects200Response(BaseModel):
                         "description": "Project Description",
                         "status": ProjectStatusEnum.ACTIVE,
                         "category": ProjectCategoryEnum.WORK.value,
-                        "priority": ProjectPriorityEnum.MEDIUM.value,
                         "start_date": "2026-01-01",
                         "due_date": "2026-01-01",
                         "completed_at": "2026-01-01T00:00:00Z",
@@ -284,9 +269,6 @@ class UpdateProjectParams:
         category: Optional[ProjectCategoryEnum] = Body(
             None, description="The category of the project."
         ),
-        priority: Optional[ProjectPriorityEnum] = Body(
-            None, description="The priority of the project."
-        ),
         start_date: Optional[date] = Body(
             None,
             description="The start date of the project.",
@@ -311,7 +293,6 @@ class UpdateProjectParams:
         self.description = description.strip() if description else None
         self.status = status.value if status else None
         self.category = category.value if category else None
-        self.priority = priority.value if priority else None
         self.start_date = start_date if start_date else None
         self.due_date = due_date if due_date else None
         self.color = color.strip() if color else None

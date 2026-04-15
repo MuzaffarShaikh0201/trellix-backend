@@ -73,7 +73,6 @@ async def get_all_projects(
         sort_order=params.sort_order,
         status=params.status,
         category=params.category,
-        priority=params.priority,
         is_favorite=params.is_favorite,
     )
 
@@ -165,7 +164,6 @@ async def create_new_project(
         title=params.title,
         description=params.description,
         category=params.category,
-        priority=params.priority,
         start_date=params.start_date,
         due_date=params.due_date,
         color=params.color,
@@ -218,7 +216,6 @@ async def update_project(
         description=params.description,
         status=params.status,
         category=params.category,
-        priority=params.priority,
         start_date=params.start_date,
         due_date=params.due_date,
         color=params.color,
