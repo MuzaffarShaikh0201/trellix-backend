@@ -72,7 +72,8 @@ async def get_all_projects(
         sort_by=params.sort_by,
         sort_order=params.sort_order,
         status=params.status,
-        category=params.category,
+        project_type=params.project_type,
+        stage=params.stage,
         is_favorite=params.is_favorite,
     )
 
@@ -163,10 +164,12 @@ async def create_new_project(
         user_creds=user_creds,
         title=params.title,
         description=params.description,
-        category=params.category,
         start_date=params.start_date,
         due_date=params.due_date,
         color=params.color,
+        repo_url=params.repo_url,
+        project_type=params.project_type,
+        stage=params.stage,
     )
 
     logger.info(
@@ -215,10 +218,12 @@ async def update_project(
         title=params.title,
         description=params.description,
         status=params.status,
-        category=params.category,
         start_date=params.start_date,
         due_date=params.due_date,
         color=params.color,
+        repo_url=params.repo_url,
+        project_type=params.project_type,
+        stage=params.stage,
     )
 
     logger.info(

@@ -4,13 +4,16 @@ These models are used for API request/response validation.
 """
 
 from copy import deepcopy
-from typing import Literal, Optional
 from datetime import date, datetime
+from typing import Literal, Optional
 from fastapi import Body, Query, Path
-from fastapi.exceptions import RequestValidationError
-from pydantic import UUID4, BaseModel, Field, ConfigDict, field_validator
+from pydantic import UUID4, BaseModel, Field, ConfigDict
 
-from .enums import ProjectCategoryEnum, ProjectStatusEnum
+from .enums import (
+    ProjectStageEnum,
+    ProjectStatusEnum,
+    ProjectTypeEnum,
+)
 
 
 class CreateProjectParams:
@@ -36,10 +39,6 @@ class CreateProjectParams:
             min_length=1,
             max_length=2000,
         ),
-        category: ProjectCategoryEnum = Body(
-            ...,
-            description="The category of the project.",
-        ),
         start_date: Optional[date] = Body(
             None,
             description="The start date of the project.",
@@ -58,13 +57,28 @@ class CreateProjectParams:
             ),
             pattern=r"^#[0-9a-fA-F]{6}$",
         ),
+        repo_url: Optional[str] = Body(
+            None,
+            description="Repository URL (e.g. Git remote).",
+            max_length=500,
+        ),
+        project_type: Optional[ProjectTypeEnum] = Body(
+            None,
+            description="Project type; defaults to WEB_APP when omitted.",
+        ),
+        stage: Optional[ProjectStageEnum] = Body(
+            None,
+            description="Lifecycle stage; defaults to IDEA when omitted.",
+        ),
     ) -> None:
         self.title = title.strip()
         self.description = description.strip() if description else None
-        self.category = category
         self.start_date = start_date
         self.due_date = due_date
         self.color = color.strip() if color else None
+        self.repo_url = repo_url.strip() if repo_url else None
+        self.project_type = project_type
+        self.stage = stage
 
 
 class CreateProject201Response(BaseModel):
@@ -90,10 +104,6 @@ class GetAllProjectsParams:
             None,
             description="The status of the projects.",
         ),
-        category: Optional[ProjectCategoryEnum] = Query(
-            None,
-            description="The category of the projects.",
-        ),
         is_favorite: Optional[bool] = Query(
             None,
             description="Whether the projects are marked as favorite.",
@@ -102,10 +112,30 @@ class GetAllProjectsParams:
         limit: int = Query(
             default=10, description="The number of projects per page.", ge=1, le=100
         ),
-        sort_by: Literal["title", "created_at", "updated_at"] = Query(
+        project_type: Optional[ProjectTypeEnum] = Query(
+            None,
+            description="Filter by project type.",
+        ),
+        stage: Optional[ProjectStageEnum] = Query(
+            None,
+            description="Filter by lifecycle stage.",
+        ),
+        sort_by: Literal[
+            "title",
+            "created_at",
+            "updated_at",
+            "project_type",
+            "stage",
+        ] = Query(
             default="updated_at",
             description="The field to sort by.",
-            enum=["title", "created_at", "updated_at"],
+            enum=[
+                "title",
+                "created_at",
+                "updated_at",
+                "project_type",
+                "stage",
+            ],
         ),
         sort_order: Literal["asc", "desc"] = Query(
             default="desc",
@@ -113,8 +143,9 @@ class GetAllProjectsParams:
             enum=["asc", "desc"],
         ),
     ) -> None:
-        self.status = status.value if status else None
-        self.category = category.value if category else None
+        self.status = status
+        self.project_type = project_type
+        self.stage = stage
         self.is_favorite = is_favorite
         self.page = page
         self.limit = limit
@@ -131,10 +162,12 @@ class ProjectResponse(BaseModel):
             "example": {
                 "id": "12345678-9012-3456-7890-123456789012",
                 "user_id": "12345678-9012-3456-7890-123456789012",
-                "title": "Project Title",
-                "description": "Project Description",
+                "title": "Auth Service Revamp",
+                "description": "Refactor login flow, improve token refresh, and add audit logs.",
                 "status": ProjectStatusEnum.ACTIVE.value,
-                "category": ProjectCategoryEnum.WORK.value,
+                "project_type": ProjectTypeEnum.API.value,
+                "stage": ProjectStageEnum.DEVELOPMENT.value,
+                "repo_url": "https://github.com/org/repo",
                 "start_date": "2026-01-01",
                 "due_date": "2026-01-01",
                 "completed_at": "2026-01-01T00:00:00Z",
@@ -153,8 +186,14 @@ class ProjectResponse(BaseModel):
         None, description="The description of the project."
     )
     status: ProjectStatusEnum = Field(..., description="The status of the project.")
-    category: ProjectCategoryEnum = Field(
-        ..., description="The category of the project."
+    project_type: ProjectTypeEnum = Field(
+        ..., description="The type classification of the project."
+    )
+    stage: ProjectStageEnum = Field(
+        ..., description="The lifecycle stage of the project."
+    )
+    repo_url: Optional[str] = Field(
+        None, description="Source repository URL, if any."
     )
     start_date: Optional[date] = Field(
         None, description="The start date of the project."
@@ -179,10 +218,12 @@ class GetAllProjects200Response(BaseModel):
                     {
                         "id": "12345678-9012-3456-7890-123456789012",
                         "user_id": "12345678-9012-3456-7890-123456789012",
-                        "title": "Project Title",
-                        "description": "Project Description",
-                        "status": ProjectStatusEnum.ACTIVE,
-                        "category": ProjectCategoryEnum.WORK.value,
+                        "title": "Auth Service Revamp",
+                        "description": "Refactor login flow, improve token refresh, and add audit logs.",
+                        "status": ProjectStatusEnum.ACTIVE.value,
+                        "project_type": ProjectTypeEnum.WEB_APP.value,
+                        "stage": ProjectStageEnum.IDEA.value,
+                        "repo_url": None,
                         "start_date": "2026-01-01",
                         "due_date": "2026-01-01",
                         "completed_at": "2026-01-01T00:00:00Z",
@@ -266,9 +307,6 @@ class UpdateProjectParams:
         status: Optional[ProjectStatusEnum] = Body(
             None, description="The status of the project."
         ),
-        category: Optional[ProjectCategoryEnum] = Body(
-            None, description="The category of the project."
-        ),
         start_date: Optional[date] = Body(
             None,
             description="The start date of the project.",
@@ -287,15 +325,30 @@ class UpdateProjectParams:
             ),
             pattern=r"^#[0-9a-fA-F]{6}$",
         ),
+        repo_url: Optional[str] = Body(
+            None,
+            description="Repository URL (e.g. Git remote).",
+            max_length=500,
+        ),
+        project_type: Optional[ProjectTypeEnum] = Body(
+            None,
+            description="The type classification of the project.",
+        ),
+        stage: Optional[ProjectStageEnum] = Body(
+            None,
+            description="The lifecycle stage of the project.",
+        ),
     ) -> None:
         self.project_id = project_id
         self.title = title.strip() if title else None
         self.description = description.strip() if description else None
-        self.status = status.value if status else None
-        self.category = category.value if category else None
+        self.status = status
         self.start_date = start_date if start_date else None
         self.due_date = due_date if due_date else None
         self.color = color.strip() if color else None
+        self.repo_url = repo_url
+        self.project_type = project_type
+        self.stage = stage
 
 
 class UpdateProject200Response(BaseModel):

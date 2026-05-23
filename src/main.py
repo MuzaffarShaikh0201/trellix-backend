@@ -97,7 +97,7 @@ doc_tags_metadata = [
     },
     {
         "name": "Project APIs",
-        "description": "Project APIs like create, get, update, delete, etc. that are related to project management.",
+        "description": "Project APIs like create, get, update, delete, etc. for software development project management.",
     },
 ]
 
@@ -106,7 +106,7 @@ app.openapi = create_custom_openapi_generator(
     env_config=settings,
     docs_summary="Trellix Backend API Documentation",
     docs_description=(
-        "Backend APIs for Trellix Project Manager.\n"
+        "Backend APIs for Trellix Software Development Project Manager.\n"
         f"Frontend URL: {settings.frontend_url}"
     ),
     docs_tags_metadata=doc_tags_metadata,

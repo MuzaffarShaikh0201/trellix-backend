@@ -1,7 +1,7 @@
 [project]
 name = "trellix-backend"
 version = "0.1.0"
-description = "Backend services for Trellix Project Manager."
+description = "Backend services for Trellix Software Development Project Manager."
 authors = [
     {name = "Muzaffar Shaikh",email = "114210961+MuzaffarShaikh0201@users.noreply.github.com"}
 ]
@@ -26,7 +26,7 @@ dependencies = [
 [tool.poetry]
 name = "trellix-backend"
 version = "0.1.0"
-description = "Backend services for Trellix Project Manager."
+description = "Backend services for Trellix Software Development Project Manager."
 authors = ["MuzaffarShaikh0201 <muzaffarshaikh0201@gmail.com>"]
 packages = [{include = "src"}, {include = "scripts"}]
 

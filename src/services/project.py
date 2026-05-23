@@ -12,10 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..utils import get_logger
 from ..models import (
-    ProjectStatusEnum,
-    UserCreds,
-    ProjectCategoryEnum,
     Project,
+    ProjectStageEnum,
+    ProjectStatusEnum,
+    ProjectTypeEnum,
+    UserCreds,
 )
 
 
@@ -30,9 +31,10 @@ async def get_all_projects_by_user_id(
     sort_by: str,
     sort_order: str,
     status: ProjectStatusEnum | None,
-    category: ProjectCategoryEnum | None,
+    project_type: ProjectTypeEnum | None,
+    stage: ProjectStageEnum | None,
     is_favorite: bool | None,
-) -> list[Project]:
+) -> tuple[list[Project], int, int]:
     """
     Get all projects by user ID (not deleted and not archived).
     Filters, sorting, and pagination are supported.
@@ -45,11 +47,12 @@ async def get_all_projects_by_user_id(
     - sort_by: str - The field to sort by.
     - sort_order: str - The order to sort by.
     - status: ProjectStatusEnum | None - The status of the projects.
-    - category: ProjectCategoryEnum | None - The category of the projects.
+    - project_type: ProjectTypeEnum | None - Filter by project type.
+    - stage: ProjectStageEnum | None - Filter by lifecycle stage.
     - is_favorite: bool | None - Whether the projects are marked as favorite.
 
     # Returns:
-    - list[Project]: The list of projects.
+    - tuple[list[Project], int, int]: Projects, total pages, total item count.
 
     # Raises:
     - HTTPException: If the project retrieval fails.
@@ -64,10 +67,12 @@ async def get_all_projects_by_user_id(
         )
 
         # Apply filters
-        if status:
+        if status is not None:
             projects_stmt = projects_stmt.where(Project.status == status)
-        if category:
-            projects_stmt = projects_stmt.where(Project.category == category)
+        if project_type is not None:
+            projects_stmt = projects_stmt.where(Project.project_type == project_type)
+        if stage is not None:
+            projects_stmt = projects_stmt.where(Project.stage == stage)
         if is_favorite is not None:
             projects_stmt = projects_stmt.where(Project.is_favorite == is_favorite)
 
@@ -157,10 +162,12 @@ async def create_project(
     user_creds: UserCreds,
     title: str,
     description: str | None,
-    category: ProjectCategoryEnum,
     start_date: date | None,
     due_date: date | None,
     color: str | None,
+    repo_url: str | None,
+    project_type: ProjectTypeEnum | None,
+    stage: ProjectStageEnum | None,
 ) -> Project:
     """
     Create a new project for the current user.
@@ -181,21 +188,22 @@ async def create_project(
         if start_date and start_date == date.today():
             status = ProjectStatusEnum.ACTIVE
         else:
-            status = ProjectStatusEnum.PENDING
+            status = ProjectStatusEnum.PLANNED
 
         project = Project(
             user_id=user_creds.user_id,
             title=title,
             description=description,
             status=status,
-            category=category,
+            project_type=project_type or ProjectTypeEnum.WEB_APP,
+            stage=stage or ProjectStageEnum.IDEA,
+            repo_url=repo_url,
             start_date=start_date,
             due_date=due_date,
             color=color,
         )
         db_session.add(project)
         await db_session.commit()
-        await db_session.flush()
 
         logger.info(f"Project created successfully: {project.id}")
         return project
@@ -264,10 +272,12 @@ async def update_project_by_id(
     title: str | None,
     description: str | None,
     status: ProjectStatusEnum | None,
-    category: ProjectCategoryEnum | None,
     start_date: date | None,
     due_date: date | None,
     color: str | None,
+    repo_url: str | None,
+    project_type: ProjectTypeEnum | None,
+    stage: ProjectStageEnum | None,
 ) -> None:
     """
     Update a project by ID for the current user.
@@ -279,10 +289,12 @@ async def update_project_by_id(
     - title: str | None - The title of the project.
     - description: str | None - The description of the project.
     - status: ProjectStatusEnum | None - The status of the project.
-    - category: ProjectCategoryEnum | None - The category of the project.
     - start_date: date | None - The start date of the project.
     - due_date: date | None - The due date of the project.
     - color: str | None - The color of the project.
+    - repo_url: str | None - When not None, set repository URL (strip; empty clears).
+    - project_type: ProjectTypeEnum | None - When not None, update project type.
+    - stage: ProjectStageEnum | None - When not None, update lifecycle stage.
 
     # Returns:
     - None: The project is updated successfully.
@@ -310,16 +322,20 @@ async def update_project_by_id(
             project.title = title
         if description:
             project.description = description
-        if status:
+        if status is not None:
             project.status = status
-        if category:
-            project.category = category
         if start_date:
             project.start_date = start_date
         if due_date:
             project.due_date = due_date
         if color:
             project.color = color
+        if repo_url is not None:
+            project.repo_url = repo_url.strip() or None
+        if project_type is not None:
+            project.project_type = project_type
+        if stage is not None:
+            project.stage = stage
 
         await db_session.commit()
 

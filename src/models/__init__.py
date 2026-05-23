@@ -4,11 +4,17 @@ Models initialization.
 
 from .enums import (
     AuthTypeEnum,
-    ProjectStatusEnum,
     ProjectPriorityEnum,
-    ProjectCategoryEnum,
+    ProjectStageEnum,
+    ProjectStatusEnum,
+    ProjectTechStackTypeEnum,
+    ProjectTypeEnum,
+    TaskDomainEnum,
+    TaskPriorityEnum,
+    TaskStatusEnum,
+    TaskTypeEnum,
 )
-from .database import Base, User, Project
+from .database import Base, Project, ProjectTechStack, Task, User
 from .misc import Root200Response, Health200Response
 from .auth import (
     RegisterParams,
@@ -45,10 +51,18 @@ __all__ = [
     "AuthTypeEnum",
     "ProjectStatusEnum",
     "ProjectPriorityEnum",
-    "ProjectCategoryEnum",
+    "ProjectTypeEnum",
+    "ProjectStageEnum",
+    "ProjectTechStackTypeEnum",
+    "TaskStatusEnum",
+    "TaskTypeEnum",
+    "TaskPriorityEnum",
+    "TaskDomainEnum",
     "Base",
     "Health200Response",
     "Project",
+    "ProjectTechStack",
+    "Task",
     "Root200Response",
     "User",
     "RegisterParams",
