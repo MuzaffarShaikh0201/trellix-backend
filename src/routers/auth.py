@@ -13,6 +13,7 @@ from ..utils import get_logger
 from ..auth import SessionStoreType, bearer_header_auth, get_session_store
 from ..services import (
     create_user,
+    find_user_by_email,
     generate_jwt_tokens,
     get_user_by_email,
     hash_password,
@@ -63,9 +64,9 @@ async def register(
 
     logger.info("POST /register - Register a new user endpoint called")
 
-    user = await get_user_by_email(params.email, db_session)
+    existing_user = await find_user_by_email(params.email, db_session)
 
-    if user:
+    if existing_user:
         raise HTTPException(
             status_code=409, detail="An account with this email already exists."
         )

@@ -16,11 +16,11 @@ class AuthTypeEnum(StrEnum):
 class ProjectStatusEnum(StrEnum):
     """Lifecycle status for a project."""
 
-    PLANNED = "PLANNED"
-    ACTIVE = "ACTIVE"
+    PLANNING = "PLANNING"
+    IN_PROGRESS = "IN_PROGRESS"
     ON_HOLD = "ON_HOLD"
     COMPLETED = "COMPLETED"
-    ARCHIVED = "ARCHIVED"
+    ABANDONED = "ABANDONED"
 
 
 class ProjectPriorityEnum(StrEnum):
@@ -29,38 +29,6 @@ class ProjectPriorityEnum(StrEnum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
-
-
-class ProjectTypeEnum(StrEnum):
-    """Project type classification."""
-
-    WEB_APP = "WEB_APP"
-    MOBILE_APP = "MOBILE_APP"
-    API = "API"
-    CLI = "CLI"
-    LIBRARY = "LIBRARY"
-    FULL_STACK = "FULL_STACK"
-
-
-class ProjectStageEnum(StrEnum):
-    """Current stage of project lifecycle."""
-
-    IDEA = "IDEA"
-    DEVELOPMENT = "DEVELOPMENT"
-    TESTING = "TESTING"
-    PRODUCTION = "PRODUCTION"
-    MAINTENANCE = "MAINTENANCE"
-    DEPRECATED = "DEPRECATED"
-
-
-class ProjectTechStackTypeEnum(StrEnum):
-    """Project technology stack component type."""
-
-    BACKEND = "BACKEND"
-    FRONTEND = "FRONTEND"
-    DATABASE = "DATABASE"
-    DEVOPS = "DEVOPS"
-    OTHER = "OTHER"
 
 
 class TaskStatusEnum(StrEnum):

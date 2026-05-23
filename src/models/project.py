@@ -9,11 +9,7 @@ from typing import Literal, Optional
 from fastapi import Body, Query, Path
 from pydantic import UUID4, BaseModel, Field, ConfigDict
 
-from .enums import (
-    ProjectStageEnum,
-    ProjectStatusEnum,
-    ProjectTypeEnum,
-)
+from .enums import ProjectStatusEnum
 
 
 class CreateProjectParams:
@@ -44,9 +40,9 @@ class CreateProjectParams:
             description="The start date of the project.",
             ge=date.today(),
         ),
-        due_date: Optional[date] = Body(
+        end_date: Optional[date] = Body(
             None,
-            description="The due date of the project.",
+            description="The end date of the project.",
             ge=date.today(),
         ),
         color: Optional[str] = Body(
@@ -62,23 +58,13 @@ class CreateProjectParams:
             description="Repository URL (e.g. Git remote).",
             max_length=500,
         ),
-        project_type: Optional[ProjectTypeEnum] = Body(
-            None,
-            description="Project type; defaults to WEB_APP when omitted.",
-        ),
-        stage: Optional[ProjectStageEnum] = Body(
-            None,
-            description="Lifecycle stage; defaults to IDEA when omitted.",
-        ),
     ) -> None:
         self.title = title.strip()
         self.description = description.strip() if description else None
         self.start_date = start_date
-        self.due_date = due_date
+        self.end_date = end_date
         self.color = color.strip() if color else None
         self.repo_url = repo_url.strip() if repo_url else None
-        self.project_type = project_type
-        self.stage = stage
 
 
 class CreateProject201Response(BaseModel):
@@ -108,24 +94,22 @@ class GetAllProjectsParams:
             None,
             description="Whether the projects are marked as favorite.",
         ),
+        is_archived: Optional[bool] = Query(
+            None,
+            description=(
+                "Filter by archive flag. When omitted, archived projects are excluded."
+            ),
+        ),
         page: int = Query(default=1, description="The page number."),
         limit: int = Query(
             default=10, description="The number of projects per page.", ge=1, le=100
-        ),
-        project_type: Optional[ProjectTypeEnum] = Query(
-            None,
-            description="Filter by project type.",
-        ),
-        stage: Optional[ProjectStageEnum] = Query(
-            None,
-            description="Filter by lifecycle stage.",
         ),
         sort_by: Literal[
             "title",
             "created_at",
             "updated_at",
-            "project_type",
-            "stage",
+            "start_date",
+            "end_date",
         ] = Query(
             default="updated_at",
             description="The field to sort by.",
@@ -133,8 +117,8 @@ class GetAllProjectsParams:
                 "title",
                 "created_at",
                 "updated_at",
-                "project_type",
-                "stage",
+                "start_date",
+                "end_date",
             ],
         ),
         sort_order: Literal["asc", "desc"] = Query(
@@ -144,9 +128,8 @@ class GetAllProjectsParams:
         ),
     ) -> None:
         self.status = status
-        self.project_type = project_type
-        self.stage = stage
         self.is_favorite = is_favorite
+        self.is_archived = is_archived
         self.page = page
         self.limit = limit
         self.sort_by = sort_by
@@ -164,15 +147,13 @@ class ProjectResponse(BaseModel):
                 "user_id": "12345678-9012-3456-7890-123456789012",
                 "title": "Auth Service Revamp",
                 "description": "Refactor login flow, improve token refresh, and add audit logs.",
-                "status": ProjectStatusEnum.ACTIVE.value,
-                "project_type": ProjectTypeEnum.API.value,
-                "stage": ProjectStageEnum.DEVELOPMENT.value,
+                "status": ProjectStatusEnum.IN_PROGRESS.value,
                 "repo_url": "https://github.com/org/repo",
                 "start_date": "2026-01-01",
-                "due_date": "2026-01-01",
-                "completed_at": "2026-01-01T00:00:00Z",
+                "end_date": "2026-06-01",
                 "color": "#000000",
                 "is_favorite": False,
+                "is_archived": False,
                 "created_at": "2026-01-01T00:00:00Z",
                 "updated_at": "2026-01-01T00:00:00Z",
             }
@@ -186,24 +167,14 @@ class ProjectResponse(BaseModel):
         None, description="The description of the project."
     )
     status: ProjectStatusEnum = Field(..., description="The status of the project.")
-    project_type: ProjectTypeEnum = Field(
-        ..., description="The type classification of the project."
-    )
-    stage: ProjectStageEnum = Field(
-        ..., description="The lifecycle stage of the project."
-    )
-    repo_url: Optional[str] = Field(
-        None, description="Source repository URL, if any."
-    )
+    repo_url: Optional[str] = Field(None, description="Source repository URL, if any.")
     start_date: Optional[date] = Field(
         None, description="The start date of the project."
     )
-    due_date: Optional[date] = Field(None, description="The due date of the project.")
-    completed_at: Optional[datetime] = Field(
-        None, description="When the project was completed."
-    )
+    end_date: Optional[date] = Field(None, description="The end date of the project.")
     color: Optional[str] = Field(None, description="The color of the project.")
     is_favorite: bool = Field(..., description="Whether project is marked favorite.")
+    is_archived: bool = Field(..., description="Whether the project is archived.")
     created_at: datetime = Field(..., description="Creation timestamp.")
     updated_at: datetime = Field(..., description="Last update timestamp.")
 
@@ -220,15 +191,13 @@ class GetAllProjects200Response(BaseModel):
                         "user_id": "12345678-9012-3456-7890-123456789012",
                         "title": "Auth Service Revamp",
                         "description": "Refactor login flow, improve token refresh, and add audit logs.",
-                        "status": ProjectStatusEnum.ACTIVE.value,
-                        "project_type": ProjectTypeEnum.WEB_APP.value,
-                        "stage": ProjectStageEnum.IDEA.value,
+                        "status": ProjectStatusEnum.IN_PROGRESS.value,
                         "repo_url": None,
                         "start_date": "2026-01-01",
-                        "due_date": "2026-01-01",
-                        "completed_at": "2026-01-01T00:00:00Z",
+                        "end_date": "2026-06-01",
                         "color": "#000000",
                         "is_favorite": False,
+                        "is_archived": False,
                         "created_at": "2026-01-01T00:00:00Z",
                         "updated_at": "2026-01-01T00:00:00Z",
                     }
@@ -280,6 +249,19 @@ class ToggleProjectFavorite200Response(BaseModel):
     message: str = Field(..., description="The message of the response.")
 
 
+class ToggleProjectArchived200Response(BaseModel):
+    """Response model for toggling project archived status."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "message": "Project archived status toggled successfully",
+            }
+        },
+    )
+    message: str = Field(..., description="The message of the response.")
+
+
 class UpdateProjectParams:
     """Parameters for updating a project."""
 
@@ -312,9 +294,9 @@ class UpdateProjectParams:
             description="The start date of the project.",
             ge=date.today(),
         ),
-        due_date: Optional[date] = Body(
+        end_date: Optional[date] = Body(
             None,
-            description="The due date of the project.",
+            description="The end date of the project.",
             ge=date.today(),
         ),
         color: Optional[str] = Body(
@@ -330,13 +312,9 @@ class UpdateProjectParams:
             description="Repository URL (e.g. Git remote).",
             max_length=500,
         ),
-        project_type: Optional[ProjectTypeEnum] = Body(
+        is_archived: Optional[bool] = Body(
             None,
-            description="The type classification of the project.",
-        ),
-        stage: Optional[ProjectStageEnum] = Body(
-            None,
-            description="The lifecycle stage of the project.",
+            description="Whether the project is archived.",
         ),
     ) -> None:
         self.project_id = project_id
@@ -344,11 +322,10 @@ class UpdateProjectParams:
         self.description = description.strip() if description else None
         self.status = status
         self.start_date = start_date if start_date else None
-        self.due_date = due_date if due_date else None
+        self.end_date = end_date if end_date else None
         self.color = color.strip() if color else None
         self.repo_url = repo_url
-        self.project_type = project_type
-        self.stage = stage
+        self.is_archived = is_archived
 
 
 class UpdateProject200Response(BaseModel):

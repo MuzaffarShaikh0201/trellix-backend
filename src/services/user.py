@@ -15,6 +15,33 @@ from ..models import AuthTypeEnum, User
 logger = get_logger(__name__)
 
 
+async def find_user_by_email(email: str, db_session: AsyncSession) -> User | None:
+    """
+    Look up a user by email without raising when missing.
+
+    # Args:
+    - email: str - The email of the user.
+    - db_session: AsyncSession - The database session.
+
+    # Returns:
+    - User | None: The user, or None if no row exists.
+
+    # Raises:
+    - HTTPException: If the database query fails.
+    """
+
+    try:
+        user_stmt = select(User).where(User.email == email)
+        user_result = await db_session.execute(user_stmt)
+        return user_result.scalar_one_or_none()
+    except Exception as e:
+        logger.error(f"Error finding user by email: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Could not get user by email. Please try again.",
+        )
+
+
 async def get_user_by_email(email: str, db_session: AsyncSession) -> User:
     """
     Get a user by email.
@@ -30,26 +57,15 @@ async def get_user_by_email(email: str, db_session: AsyncSession) -> User:
     - HTTPException: If the user retrieval fails or if the user is not found.
     """
 
-    try:
-        user_stmt = select(User).where(User.email == email)
-        user_result = await db_session.execute(user_stmt)
-        user = user_result.scalar_one_or_none()
+    user = await find_user_by_email(email, db_session)
 
-        if not user:
-            raise HTTPException(
-                status_code=404,
-                detail="User not found.",
-            )
-
-        return user
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        logger.error(f"Error getting user by email: {str(e)}")
+    if not user:
         raise HTTPException(
-            status_code=500,
-            detail="Could not get user by email. Please try again.",
+            status_code=404,
+            detail="User not found.",
         )
+
+    return user
 
 
 async def create_user(

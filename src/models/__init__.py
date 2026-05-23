@@ -5,16 +5,13 @@ Models initialization.
 from .enums import (
     AuthTypeEnum,
     ProjectPriorityEnum,
-    ProjectStageEnum,
     ProjectStatusEnum,
-    ProjectTechStackTypeEnum,
-    ProjectTypeEnum,
     TaskDomainEnum,
     TaskPriorityEnum,
     TaskStatusEnum,
     TaskTypeEnum,
 )
-from .database import Base, Project, ProjectTechStack, Task, User
+from .database import Base, Project, Task, User
 from .misc import Root200Response, Health200Response
 from .auth import (
     RegisterParams,
@@ -34,6 +31,7 @@ from .project import (
     GetAllProjects200Response,
     GetProject200Response,
     ToggleProjectFavorite200Response,
+    ToggleProjectArchived200Response,
     UpdateProjectParams,
     UpdateProject200Response,
     DeleteProject200Response,
@@ -51,9 +49,6 @@ __all__ = [
     "AuthTypeEnum",
     "ProjectStatusEnum",
     "ProjectPriorityEnum",
-    "ProjectTypeEnum",
-    "ProjectStageEnum",
-    "ProjectTechStackTypeEnum",
     "TaskStatusEnum",
     "TaskTypeEnum",
     "TaskPriorityEnum",
@@ -61,7 +56,6 @@ __all__ = [
     "Base",
     "Health200Response",
     "Project",
-    "ProjectTechStack",
     "Task",
     "Root200Response",
     "User",
@@ -85,6 +79,7 @@ __all__ = [
     "UpdateUserPasswordParams",
     "UpdateUserPassword200Response",
     "ToggleProjectFavorite200Response",
+    "ToggleProjectArchived200Response",
     "UpdateProjectParams",
     "UpdateProject200Response",
     "DeleteProject200Response",

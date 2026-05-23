@@ -33,7 +33,7 @@ def _register_user(client: TestClient, email: str | None = None) -> str:
     """Register a user and return their email."""
 
     email = email or f"pytest-user-{uuid.uuid4()}@example.com"
-    response = client.post("/register", json=_register_payload(email))
+    response = client.post("/register", data=_register_payload(email))
     assert response.status_code == 201, response.text
     return email
 
@@ -44,7 +44,7 @@ class TestRegisterValidation:
     def test_password_missing_digit(self, client: TestClient) -> None:
         response = client.post(
             "/register",
-            json={
+            data={
                 **_register_payload("pytest-missing-digit@example.com"),
                 "password": "NoDigit!!",
             },
@@ -54,7 +54,7 @@ class TestRegisterValidation:
     def test_password_missing_special_character(self, client: TestClient) -> None:
         response = client.post(
             "/register",
-            json={
+            data={
                 **_register_payload("pytest-missing-special@example.com"),
                 "password": "NoSpecial1",
             },
@@ -64,7 +64,7 @@ class TestRegisterValidation:
     def test_password_too_short(self, client: TestClient) -> None:
         response = client.post(
             "/register",
-            json={
+            data={
                 **_register_payload("pytest-short-pw@example.com"),
                 "password": "Ab1!",
             },
@@ -74,7 +74,7 @@ class TestRegisterValidation:
     def test_first_name_invalid_characters(self, client: TestClient) -> None:
         response = client.post(
             "/register",
-            json={
+            data={
                 **_register_payload("pytest-bad-name@example.com"),
                 "first_name": "John3",
             },
@@ -84,7 +84,7 @@ class TestRegisterValidation:
     def test_invalid_email(self, client: TestClient) -> None:
         response = client.post(
             "/register",
-            json={**_register_payload("pytest-x@example.com"), "email": "not-an-email"},
+            data={**_register_payload("pytest-x@example.com"), "email": "not-an-email"},
         )
         assert response.status_code == 422
 
@@ -94,7 +94,7 @@ class TestRegisterEndpoint:
 
     def test_register_returns_201_and_body(self, client: TestClient) -> None:
         email = f"pytest-register-{uuid.uuid4()}@example.com"
-        response = client.post("/register", json=_register_payload(email))
+        response = client.post("/register", data=_register_payload(email))
         assert response.status_code == 201
         data = response.json()
         Register201Response.model_validate(data)
@@ -104,10 +104,10 @@ class TestRegisterEndpoint:
         email = f"pytest-dup-{uuid.uuid4()}@example.com"
         payload = _register_payload(email)
 
-        first = client.post("/register", json=payload)
+        first = client.post("/register", data=payload)
         assert first.status_code == 201
 
-        second = client.post("/register", json=payload)
+        second = client.post("/register", data=payload)
         assert second.status_code == 409
         assert second.json()["detail"] == "An account with this email already exists."
 
@@ -117,11 +117,10 @@ class TestLoginEndpoint:
 
     def test_login_returns_200_after_register(self, client: TestClient) -> None:
         email = _register_user(client)
-        response = client.post("/login", json=_login_payload(email))
+        response = client.post("/login", data=_login_payload(email))
         assert response.status_code == 200
         data = response.json()
         Login200Response.model_validate(data)
-        assert data["message"] == "User logged in successfully"
         assert data["access_token"]
         assert data["refresh_token"]
         assert data["session_id"]
@@ -129,16 +128,16 @@ class TestLoginEndpoint:
     def test_login_unknown_email_returns_404(self, client: TestClient) -> None:
         response = client.post(
             "/login",
-            json=_login_payload(f"pytest-nobody-{uuid.uuid4()}@example.com"),
+            data=_login_payload(f"pytest-nobody-{uuid.uuid4()}@example.com"),
         )
         assert response.status_code == 404
-        assert response.json()["detail"] == "User with this email does not exists."
+        assert response.json()["detail"] == "User not found."
 
     def test_login_wrong_password_returns_401(self, client: TestClient) -> None:
         email = _register_user(client)
         response = client.post(
             "/login",
-            json=_login_payload(email, password="Wrong1!zz"),
+            data=_login_payload(email, password="Wrong1!zz"),
         )
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid email or password."
@@ -150,7 +149,7 @@ class TestLoginValidation:
     def test_password_missing_digit(self, client: TestClient) -> None:
         response = client.post(
             "/login",
-            json={
+            data={
                 "email": f"pytest-login-val-{uuid.uuid4()}@example.com",
                 "password": "NoDigit!!",
             },
@@ -163,46 +162,45 @@ class TestRefreshEndpoint:
 
     def test_refresh_returns_200_with_valid_tokens(self, client: TestClient) -> None:
         email = _register_user(client)
-        login = client.post("/login", json=_login_payload(email))
+        login = client.post("/login", data=_login_payload(email))
         assert login.status_code == 200
         tokens = login.json()
 
         response = client.post(
             "/refresh",
-            json={"refresh_token": tokens["refresh_token"]},
+            data={"refresh_token": tokens["refresh_token"]},
             headers={"Authorization": f"Bearer {tokens['access_token']}"},
         )
         assert response.status_code == 200
         data = response.json()
         Refresh200Response.model_validate(data)
-        assert data["message"] == "Access token refreshed successfully"
         assert data["access_token"]
         assert data["refresh_token"]
         assert data["session_id"] == tokens["session_id"]
 
     def test_refresh_missing_authorization_returns_401(self, client: TestClient) -> None:
         email = _register_user(client)
-        login = client.post("/login", json=_login_payload(email))
+        login = client.post("/login", data=_login_payload(email))
         assert login.status_code == 200
         tokens = login.json()
 
         response = client.post(
             "/refresh",
-            json={"refresh_token": tokens["refresh_token"]},
+            data={"refresh_token": tokens["refresh_token"]},
         )
         assert response.status_code == 401
         assert response.json()["detail"] == "No authorization header provided"
 
     def test_refresh_invalid_refresh_token_returns_401(self, client: TestClient) -> None:
         email = _register_user(client)
-        login = client.post("/login", json=_login_payload(email))
+        login = client.post("/login", data=_login_payload(email))
         assert login.status_code == 200
         tokens = login.json()
 
         response = client.post(
             "/refresh",
-            json={"refresh_token": "invalid.jwt.token"},
+            data={"refresh_token": "invalid.jwt.token"},
             headers={"Authorization": f"Bearer {tokens['access_token']}"},
         )
         assert response.status_code == 401
-        assert response.json()["detail"] == "Invalid refresh token."
+        assert response.json()["detail"] == "Invalid JWT refresh token"

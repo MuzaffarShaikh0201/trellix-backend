@@ -15,6 +15,7 @@ from ..services import (
     get_all_projects_by_user_id,
     get_project_by_id,
     toggle_project_favorite_status_by_id,
+    toggle_project_archived_status_by_id,
     update_project_by_id,
     delete_project_by_id,
 )
@@ -27,6 +28,7 @@ from ..models import (
     GetAllProjects200Response,
     GetProject200Response,
     ToggleProjectFavorite200Response,
+    ToggleProjectArchived200Response,
     UpdateProjectParams,
     UpdateProject200Response,
 )
@@ -72,9 +74,8 @@ async def get_all_projects(
         sort_by=params.sort_by,
         sort_order=params.sort_order,
         status=params.status,
-        project_type=params.project_type,
-        stage=params.stage,
         is_favorite=params.is_favorite,
+        is_archived=params.is_archived,
     )
 
     logger.info("GET /project - Response: 200 OK - Projects fetched successfully")
@@ -165,11 +166,9 @@ async def create_new_project(
         title=params.title,
         description=params.description,
         start_date=params.start_date,
-        due_date=params.due_date,
+        end_date=params.end_date,
         color=params.color,
         repo_url=params.repo_url,
-        project_type=params.project_type,
-        stage=params.stage,
     )
 
     logger.info(
@@ -219,11 +218,10 @@ async def update_project(
         description=params.description,
         status=params.status,
         start_date=params.start_date,
-        due_date=params.due_date,
+        end_date=params.end_date,
         color=params.color,
         repo_url=params.repo_url,
-        project_type=params.project_type,
-        stage=params.stage,
+        is_archived=params.is_archived,
     )
 
     logger.info(
@@ -280,6 +278,40 @@ async def toggle_project_favorite_status(
         status_code=status.HTTP_200_OK,
         content=ToggleProjectFavorite200Response(
             message="Project favorite status toggled successfully",
+        ).model_dump(mode="json"),
+    )
+
+
+@router.patch(
+    path="/{project_id}/toggle-archived",
+    summary="Toggle project archived status",
+    description="Toggle project archived status for the current user.",
+    status_code=status.HTTP_200_OK,
+    response_model=ToggleProjectArchived200Response,
+)
+async def toggle_project_archived_status(
+    project_id: UUID4 = Path(..., description="The ID of the project."),
+    user_creds: UserCreds = Depends(bearer_header_auth),
+    db_session: AsyncSession = Depends(get_db_session),
+) -> JSONResponse:
+    """
+    Toggle project archived status for the current user.
+    """
+    logger.info(
+        "PATCH /project/{project_id}/toggle-archived - Toggle project archived status endpoint called"
+    )
+    await toggle_project_archived_status_by_id(
+        db_session=db_session,
+        user_id=user_creds.user_id,
+        project_id=project_id,
+    )
+    logger.info(
+        "PATCH /project/{project_id}/toggle-archived - Response: 200 OK - Project archived status toggled successfully"
+    )
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=ToggleProjectArchived200Response(
+            message="Project archived status toggled successfully",
         ).model_dump(mode="json"),
     )
 

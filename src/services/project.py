@@ -13,9 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..utils import get_logger
 from ..models import (
     Project,
-    ProjectStageEnum,
     ProjectStatusEnum,
-    ProjectTypeEnum,
     UserCreds,
 )
 
@@ -31,12 +29,11 @@ async def get_all_projects_by_user_id(
     sort_by: str,
     sort_order: str,
     status: ProjectStatusEnum | None,
-    project_type: ProjectTypeEnum | None,
-    stage: ProjectStageEnum | None,
     is_favorite: bool | None,
+    is_archived: bool | None,
 ) -> tuple[list[Project], int, int]:
     """
-    Get all projects by user ID (not deleted and not archived).
+    Get all projects by user ID (not deleted; excludes archived by default).
     Filters, sorting, and pagination are supported.
 
     # Args:
@@ -47,9 +44,8 @@ async def get_all_projects_by_user_id(
     - sort_by: str - The field to sort by.
     - sort_order: str - The order to sort by.
     - status: ProjectStatusEnum | None - The status of the projects.
-    - project_type: ProjectTypeEnum | None - Filter by project type.
-    - stage: ProjectStageEnum | None - Filter by lifecycle stage.
     - is_favorite: bool | None - Whether the projects are marked as favorite.
+    - is_archived: bool | None - When set, filter by archive flag; when None, exclude archived.
 
     # Returns:
     - tuple[list[Project], int, int]: Projects, total pages, total item count.
@@ -63,16 +59,15 @@ async def get_all_projects_by_user_id(
         projects_stmt = select(Project).where(
             Project.user_id == user_id,
             Project.is_deleted == False,
-            Project.status != ProjectStatusEnum.ARCHIVED,
         )
 
         # Apply filters
+        if is_archived is not None:
+            projects_stmt = projects_stmt.where(Project.is_archived == is_archived)
+        else:
+            projects_stmt = projects_stmt.where(Project.is_archived == False)
         if status is not None:
             projects_stmt = projects_stmt.where(Project.status == status)
-        if project_type is not None:
-            projects_stmt = projects_stmt.where(Project.project_type == project_type)
-        if stage is not None:
-            projects_stmt = projects_stmt.where(Project.stage == stage)
         if is_favorite is not None:
             projects_stmt = projects_stmt.where(Project.is_favorite == is_favorite)
 
@@ -114,7 +109,7 @@ async def get_project_by_id(
     project_id: UUID4,
 ) -> Project:
     """
-    Get a project by ID for the current user.
+    Get a project by ID for the current user
 
     # Args:
     - db_session: AsyncSession - The database session.
@@ -163,11 +158,9 @@ async def create_project(
     title: str,
     description: str | None,
     start_date: date | None,
-    due_date: date | None,
+    end_date: date | None,
     color: str | None,
     repo_url: str | None,
-    project_type: ProjectTypeEnum | None,
-    stage: ProjectStageEnum | None,
 ) -> Project:
     """
     Create a new project for the current user.
@@ -186,20 +179,18 @@ async def create_project(
 
     try:
         if start_date and start_date == date.today():
-            status = ProjectStatusEnum.ACTIVE
+            status = ProjectStatusEnum.IN_PROGRESS
         else:
-            status = ProjectStatusEnum.PLANNED
+            status = ProjectStatusEnum.PLANNING
 
         project = Project(
             user_id=user_creds.user_id,
             title=title,
             description=description,
             status=status,
-            project_type=project_type or ProjectTypeEnum.WEB_APP,
-            stage=stage or ProjectStageEnum.IDEA,
             repo_url=repo_url,
             start_date=start_date,
-            due_date=due_date,
+            end_date=end_date,
             color=color,
         )
         db_session.add(project)
@@ -236,7 +227,7 @@ async def toggle_project_favorite_status_by_id(
             Project.id == project_id,
             Project.user_id == user_id,
             Project.is_deleted == False,
-            Project.status != ProjectStatusEnum.ARCHIVED,
+            Project.is_archived == False,
         )
         project_result = await db_session.execute(project_stmt)
         project = project_result.scalar_one_or_none()
@@ -265,6 +256,56 @@ async def toggle_project_favorite_status_by_id(
         )
 
 
+async def toggle_project_archived_status_by_id(
+    db_session: AsyncSession,
+    user_id: UUID4,
+    project_id: UUID4,
+) -> None:
+    """
+    Toggle project archived status for the current user.
+
+    # Args:
+    - db_session: AsyncSession - The database session.
+    - user_id: UUID4 - The user ID.
+    - project_id: UUID4 - The ID of the project.
+
+    # Returns:
+    - None: The project archived status is toggled successfully.
+    """
+    try:
+        project_stmt = select(Project).where(
+            Project.id == project_id,
+            Project.user_id == user_id,
+            Project.is_deleted == False,
+        )
+
+        project_result = await db_session.execute(project_stmt)
+        project = project_result.scalar_one_or_none()
+
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail="Project not found.",
+            )
+
+        project.is_archived = not project.is_archived
+        await db_session.commit()
+
+        logger.info(
+            f"Project archived status toggled successfully for project ID: {project_id}"
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(
+            f"Error toggling project archived status by ID: {str(e)} for project ID: {project_id}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Could not toggle project archived status. Please try again.",
+        )
+
+
 async def update_project_by_id(
     db_session: AsyncSession,
     user_id: UUID4,
@@ -273,11 +314,10 @@ async def update_project_by_id(
     description: str | None,
     status: ProjectStatusEnum | None,
     start_date: date | None,
-    due_date: date | None,
+    end_date: date | None,
     color: str | None,
     repo_url: str | None,
-    project_type: ProjectTypeEnum | None,
-    stage: ProjectStageEnum | None,
+    is_archived: bool | None,
 ) -> None:
     """
     Update a project by ID for the current user.
@@ -289,12 +329,11 @@ async def update_project_by_id(
     - title: str | None - The title of the project.
     - description: str | None - The description of the project.
     - status: ProjectStatusEnum | None - The status of the project.
+    - is_archived: bool | None - Whether the project is archived.
     - start_date: date | None - The start date of the project.
-    - due_date: date | None - The due date of the project.
+    - end_date: date | None - The end date of the project.
     - color: str | None - The color of the project.
     - repo_url: str | None - When not None, set repository URL (strip; empty clears).
-    - project_type: ProjectTypeEnum | None - When not None, update project type.
-    - stage: ProjectStageEnum | None - When not None, update lifecycle stage.
 
     # Returns:
     - None: The project is updated successfully.
@@ -307,7 +346,7 @@ async def update_project_by_id(
             Project.id == project_id,
             Project.user_id == user_id,
             Project.is_deleted == False,
-            Project.status != ProjectStatusEnum.ARCHIVED,
+            Project.is_archived == False,
         )
         project_result = await db_session.execute(project_stmt)
         project = project_result.scalar_one_or_none()
@@ -324,18 +363,16 @@ async def update_project_by_id(
             project.description = description
         if status is not None:
             project.status = status
+        if is_archived is not None:
+            project.is_archived = is_archived
         if start_date:
             project.start_date = start_date
-        if due_date:
-            project.due_date = due_date
+        if end_date:
+            project.end_date = end_date
         if color:
             project.color = color
         if repo_url is not None:
             project.repo_url = repo_url.strip() or None
-        if project_type is not None:
-            project.project_type = project_type
-        if stage is not None:
-            project.stage = stage
 
         await db_session.commit()
 
@@ -376,7 +413,7 @@ async def delete_project_by_id(
             Project.id == project_id,
             Project.user_id == user_id,
             Project.is_deleted == False,
-            Project.status != ProjectStatusEnum.ARCHIVED,
+            Project.is_archived == False,
         )
         project_result = await db_session.execute(project_stmt)
         project = project_result.scalar_one_or_none()

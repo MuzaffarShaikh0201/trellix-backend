@@ -22,10 +22,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from ..config import settings
 from .enums import (
     AuthTypeEnum,
-    ProjectStageEnum,
     ProjectStatusEnum,
-    ProjectTechStackTypeEnum,
-    ProjectTypeEnum,
     TaskDomainEnum,
     TaskPriorityEnum,
     TaskStatusEnum,
@@ -135,44 +132,18 @@ class Project(Base, TimestampMixin):
             schema=_ORM_SCHEMA,
             values_callable=lambda obj: [e.value for e in obj],
         ),
-        default=ProjectStatusEnum.PLANNED,
-        nullable=False,
-    )
-    project_type: Mapped[ProjectTypeEnum] = mapped_column(
-        Enum(
-            ProjectTypeEnum,
-            name="project_type_enum",
-            schema=_ORM_SCHEMA,
-            values_callable=lambda obj: [e.value for e in obj],
-        ),
-        default=ProjectTypeEnum.WEB_APP,
-        nullable=False,
-    )
-    stage: Mapped[ProjectStageEnum] = mapped_column(
-        Enum(
-            ProjectStageEnum,
-            name="project_stage_enum",
-            schema=_ORM_SCHEMA,
-            values_callable=lambda obj: [e.value for e in obj],
-        ),
-        default=ProjectStageEnum.IDEA,
+        default=ProjectStatusEnum.PLANNING,
         nullable=False,
     )
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     color: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="projects", lazy="raise")
-    tech_stack_entries: Mapped[list["ProjectTechStack"]] = relationship(
-        back_populates="project",
-        lazy="raise",
-    )
     tasks: Mapped[list["Task"]] = relationship(
         back_populates="project",
         lazy="raise",
@@ -182,49 +153,9 @@ class Project(Base, TimestampMixin):
     __table_args__ = (
         Index("idx_projects_user_id", "user_id"),
         Index("idx_projects_status", "status"),
-        Index("idx_projects_project_type", "project_type"),
-        Index("idx_projects_stage", "stage"),
         Index("idx_projects_is_deleted", "is_deleted"),
         Index("idx_projects_start_date", "start_date"),
-        Index("idx_projects_due_date", "due_date"),
-    )
-
-
-class ProjectTechStack(Base, TimestampMixin):
-    """Technology stack entries for a software project."""
-
-    __tablename__ = "project_tech_stack"
-
-    id: Mapped[PythonUUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    project_id: Mapped[PythonUUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("projects.id"),
-        nullable=False,
-    )
-    name: Mapped[str] = mapped_column(String(128), nullable=False)
-    type: Mapped[ProjectTechStackTypeEnum | None] = mapped_column(
-        Enum(
-            ProjectTechStackTypeEnum,
-            name="project_tech_stack_type_enum",
-            schema=_ORM_SCHEMA,
-            values_callable=lambda obj: [e.value for e in obj],
-        ),
-        nullable=True,
-    )
-    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-
-    # Relationships
-    project: Mapped["Project"] = relationship(
-        back_populates="tech_stack_entries",
-        lazy="raise",
-    )
-
-    __table_args__ = (
-        Index("idx_project_tech_stack_project_id", "project_id"),
-        Index("idx_project_tech_stack_type", "type"),
-        Index("idx_project_tech_stack_is_deleted", "is_deleted"),
+        Index("idx_projects_end_date", "end_date"),
     )
 
 
