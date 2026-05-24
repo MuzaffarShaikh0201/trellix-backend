@@ -179,6 +179,53 @@ class ProjectResponse(BaseModel):
     updated_at: datetime = Field(..., description="Last update timestamp.")
 
 
+class RecentProjectItem(BaseModel):
+    """Summary of a recently updated project."""
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "title": "Auth Service Revamp",
+                "is_favorite": True,
+                "status": ProjectStatusEnum.IN_PROGRESS.value,
+                "created_at": "2026-01-01T00:00:00Z",
+                "updated_at": "2026-01-01T00:00:00Z",
+            }
+        },
+    )
+
+    title: str = Field(..., description="The title of the project.")
+    is_favorite: bool = Field(..., description="Whether the project is marked favorite.")
+    status: ProjectStatusEnum = Field(..., description="The status of the project.")
+    created_at: datetime = Field(..., description="Creation timestamp.")
+    updated_at: datetime = Field(..., description="Last update timestamp.")
+
+
+class GetRecentProjects200Response(BaseModel):
+    """Response model for recently updated projects (up to 5)."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "projects": [
+                    {
+                        "title": "Auth Service Revamp",
+                        "is_favorite": True,
+                        "status": ProjectStatusEnum.IN_PROGRESS.value,
+                        "created_at": "2026-01-01T00:00:00Z",
+                        "updated_at": "2026-01-01T00:00:00Z",
+                    }
+                ],
+            }
+        },
+    )
+
+    projects: list[RecentProjectItem] = Field(
+        ..., description="Up to 5 projects, newest by updated_at first."
+    )
+
+
 class GetAllProjects200Response(BaseModel):
     """Response model for getting all projects."""
 

@@ -13,6 +13,7 @@ from ..auth import bearer_header_auth
 from ..services import (
     create_project,
     get_all_projects_by_user_id,
+    get_recent_projects_by_user_id,
     get_project_by_id,
     toggle_project_favorite_status_by_id,
     toggle_project_archived_status_by_id,
@@ -26,6 +27,8 @@ from ..models import (
     GetAllProjectsParams,
     UserCreds,
     GetAllProjects200Response,
+    GetRecentProjects200Response,
+    RecentProjectItem,
     GetProject200Response,
     ToggleProjectFavorite200Response,
     ToggleProjectArchived200Response,
@@ -88,6 +91,50 @@ async def get_all_projects(
             total_items=total_items,
             current_page=params.page,
             items_per_page=params.limit,
+        ).model_dump(mode="json"),
+    )
+
+
+@router.get(
+    path="/recent",
+    summary="Get recent projects",
+    description=(
+        "Return up to 5 recently updated projects for the current user "
+        "(not deleted, not archived), ordered by updated_at descending."
+    ),
+    status_code=status.HTTP_200_OK,
+    response_model=GetRecentProjects200Response,
+)
+async def get_recent_projects(
+    user_creds: UserCreds = Depends(bearer_header_auth),
+    db_session: AsyncSession = Depends(get_db_session),
+) -> JSONResponse:
+    """
+    Get up to 5 recently updated projects for the current user.
+
+    # Args:
+    - user_creds: UserCreds - The user credentials from the bearer header authentication.
+    - db_session: AsyncSession - The database session.
+
+    # Returns:
+    - JSONResponse: A JSON response containing recent project summaries.
+    """
+
+    logger.info("GET /project/recent - Get recent projects endpoint called")
+
+    projects = await get_recent_projects_by_user_id(
+        db_session=db_session,
+        user_id=user_creds.user_id,
+    )
+
+    logger.info("GET /project/recent - Response: 200 OK - Recent projects fetched")
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content=GetRecentProjects200Response(
+            projects=[
+                RecentProjectItem.model_validate(project) for project in projects
+            ],
         ).model_dump(mode="json"),
     )
 

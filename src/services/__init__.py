@@ -12,6 +12,7 @@ from .user import find_user_by_email, get_user_by_email, create_user, get_user_b
 from .project import (
     create_project,
     get_all_projects_by_user_id,
+    get_recent_projects_by_user_id,
     get_project_by_id,
     toggle_project_favorite_status_by_id,
     toggle_project_archived_status_by_id,
@@ -30,6 +31,7 @@ __all__ = [
     "verify_refresh_token",
     "create_project",
     "get_all_projects_by_user_id",
+    "get_recent_projects_by_user_id",
     "get_project_by_id",
     "toggle_project_favorite_status_by_id",
     "toggle_project_archived_status_by_id",

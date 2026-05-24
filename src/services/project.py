@@ -20,6 +20,52 @@ from ..models import (
 
 logger = get_logger(__name__)
 
+_RECENT_PROJECTS_LIMIT = 5
+
+
+async def get_recent_projects_by_user_id(
+    db_session: AsyncSession,
+    user_id: UUID4,
+) -> list[Project]:
+    """
+    Get up to 5 most recently updated projects for a user (not deleted, not archived).
+
+    # Args:
+    - db_session: AsyncSession - The database session.
+    - user_id: UUID4 - The user ID.
+
+    # Returns:
+    - list[Project]: Projects ordered by updated_at descending.
+
+    # Raises:
+    - HTTPException: If the project retrieval fails.
+    """
+
+    try:
+        projects_stmt = (
+            select(Project)
+            .where(
+                Project.user_id == user_id,
+                Project.is_deleted == False,
+                Project.is_archived == False,
+            )
+            .order_by(Project.updated_at.desc())
+            .limit(_RECENT_PROJECTS_LIMIT)
+        )
+        projects_result = await db_session.execute(projects_stmt)
+        projects = list(projects_result.scalars().all())
+
+        logger.info(
+            f"Recent projects fetched for user ID: {user_id} - {len(projects)} projects"
+        )
+        return projects
+    except Exception as e:
+        logger.error(f"Error getting recent projects by user ID: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Could not get recent projects. Please try again.",
+        )
+
 
 async def get_all_projects_by_user_id(
     db_session: AsyncSession,
