@@ -28,7 +28,7 @@ async def get_recent_projects_by_user_id(
     user_id: UUID4,
 ) -> list[Project]:
     """
-    Get up to 5 most recently updated projects for a user (not deleted, not archived).
+    Get up to 5 most recently updated projects for a user (not archived).
 
     # Args:
     - db_session: AsyncSession - The database session.
@@ -46,7 +46,6 @@ async def get_recent_projects_by_user_id(
             select(Project)
             .where(
                 Project.user_id == user_id,
-                Project.is_deleted == False,
                 Project.is_archived == False,
             )
             .order_by(Project.updated_at.desc())
@@ -79,7 +78,7 @@ async def get_all_projects_by_user_id(
     is_archived: bool | None,
 ) -> tuple[list[Project], int, int]:
     """
-    Get all projects by user ID (not deleted; excludes archived by default).
+    Get all projects by user ID (excludes archived by default).
     Filters, sorting, and pagination are supported.
 
     # Args:
@@ -102,10 +101,7 @@ async def get_all_projects_by_user_id(
 
     try:
         # Base query
-        projects_stmt = select(Project).where(
-            Project.user_id == user_id,
-            Project.is_deleted == False,
-        )
+        projects_stmt = select(Project).where(Project.user_id == user_id)
 
         # Apply filters
         if is_archived is not None:
@@ -172,7 +168,6 @@ async def get_project_by_id(
         project_stmt = select(Project).where(
             Project.id == project_id,
             Project.user_id == user_id,
-            Project.is_deleted == False,
         )
         project_result = await db_session.execute(project_stmt)
         project = project_result.scalar_one_or_none()
@@ -272,7 +267,6 @@ async def toggle_project_favorite_status_by_id(
         project_stmt = select(Project).where(
             Project.id == project_id,
             Project.user_id == user_id,
-            Project.is_deleted == False,
             Project.is_archived == False,
         )
         project_result = await db_session.execute(project_stmt)
@@ -322,7 +316,6 @@ async def toggle_project_archived_status_by_id(
         project_stmt = select(Project).where(
             Project.id == project_id,
             Project.user_id == user_id,
-            Project.is_deleted == False,
         )
 
         project_result = await db_session.execute(project_stmt)
@@ -391,7 +384,6 @@ async def update_project_by_id(
         project_stmt = select(Project).where(
             Project.id == project_id,
             Project.user_id == user_id,
-            Project.is_deleted == False,
             Project.is_archived == False,
         )
         project_result = await db_session.execute(project_stmt)
@@ -441,7 +433,7 @@ async def delete_project_by_id(
     project_id: UUID4,
 ) -> None:
     """
-    Delete a project by ID for the current user.
+    Permanently delete a project and its related tasks (database CASCADE).
 
     # Args:
     - db_session: AsyncSession - The database session.
@@ -458,8 +450,6 @@ async def delete_project_by_id(
         project_stmt = select(Project).where(
             Project.id == project_id,
             Project.user_id == user_id,
-            Project.is_deleted == False,
-            Project.is_archived == False,
         )
         project_result = await db_session.execute(project_stmt)
         project = project_result.scalar_one_or_none()
@@ -470,10 +460,10 @@ async def delete_project_by_id(
                 detail="Project not found.",
             )
 
-        project.is_deleted = True
+        await db_session.delete(project)
         await db_session.commit()
 
-        logger.info(f"Project deleted successfully by ID: {project_id}")
+        logger.info(f"Project permanently deleted by ID: {project_id}")
     except HTTPException as e:
         raise e
     except Exception as e:

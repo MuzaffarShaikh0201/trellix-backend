@@ -140,20 +140,19 @@ class Project(Base, TimestampMixin):
     color: Mapped[str | None] = mapped_column(String(32), nullable=True)
     is_favorite: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="projects", lazy="raise")
     tasks: Mapped[list["Task"]] = relationship(
         back_populates="project",
         lazy="raise",
+        cascade="all, delete-orphan",
     )
 
     # Indexes, constraints, and unique constraints
     __table_args__ = (
         Index("idx_projects_user_id", "user_id"),
         Index("idx_projects_status", "status"),
-        Index("idx_projects_is_deleted", "is_deleted"),
         Index("idx_projects_start_date", "start_date"),
         Index("idx_projects_end_date", "end_date"),
     )
@@ -169,7 +168,7 @@ class Task(Base, TimestampMixin):
     )
     project_id: Mapped[PythonUUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("projects.id"),
+        ForeignKey("projects.id", ondelete="CASCADE"),
         nullable=False,
     )
     user_id: Mapped[PythonUUID] = mapped_column(
@@ -179,7 +178,7 @@ class Task(Base, TimestampMixin):
     )
     parent_task_id: Mapped[PythonUUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("tasks.id"),
+        ForeignKey("tasks.id", ondelete="CASCADE"),
         nullable=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -232,7 +231,6 @@ class Task(Base, TimestampMixin):
         DateTime(timezone=True),
         nullable=True,
     )
-    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Relationships
     project: Mapped["Project"] = relationship(back_populates="tasks", lazy="raise")
@@ -247,6 +245,7 @@ class Task(Base, TimestampMixin):
         "Task",
         back_populates="parent_task",
         lazy="raise",
+        cascade="all, delete-orphan",
     )
 
     __table_args__ = (
@@ -255,5 +254,4 @@ class Task(Base, TimestampMixin):
         Index("idx_tasks_status", "status"),
         Index("idx_tasks_domain", "domain"),
         Index("idx_tasks_parent_task_id", "parent_task_id"),
-        Index("idx_tasks_is_deleted", "is_deleted"),
     )

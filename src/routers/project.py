@@ -44,7 +44,7 @@ router = APIRouter(tags=["Project APIs"], prefix="/project")
     path="",
     summary="Get all projects",
     description=(
-        "Get all projects for the current user (not deleted and not archived).\n"
+        "Get all projects for the current user (excludes archived by default).\n"
         "Pagination and sorting are supported."
     ),
     status_code=status.HTTP_200_OK,
@@ -56,7 +56,7 @@ async def get_all_projects(
     db_session: AsyncSession = Depends(get_db_session),
 ) -> JSONResponse:
     """
-    Get all projects for the current user (not deleted and not archived).
+    Get all projects for the current user (excludes archived by default).
 
     # Args:
     - params: GetAllProjectsRequest - The request data object.
@@ -100,7 +100,7 @@ async def get_all_projects(
     summary="Get recent projects",
     description=(
         "Return up to 5 recently updated projects for the current user "
-        "(not deleted, not archived), ordered by updated_at descending."
+        "(not archived), ordered by updated_at descending."
     ),
     status_code=status.HTTP_200_OK,
     response_model=GetRecentProjects200Response,
@@ -366,7 +366,10 @@ async def toggle_project_archived_status(
 @router.delete(
     path="/{project_id}",
     summary="Delete project",
-    description="Delete project for the current user.",
+    description=(
+        "Permanently delete a project for the current user. "
+        "All related tasks are removed via database cascade."
+    ),
     status_code=status.HTTP_200_OK,
     response_model=DeleteProject200Response,
 )
