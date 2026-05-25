@@ -186,6 +186,7 @@ class RecentProjectItem(BaseModel):
         from_attributes=True,
         json_schema_extra={
             "example": {
+                "id": "12345678-9012-3456-7890-123456789012",
                 "title": "Auth Service Revamp",
                 "is_favorite": True,
                 "status": ProjectStatusEnum.IN_PROGRESS.value,
@@ -195,6 +196,7 @@ class RecentProjectItem(BaseModel):
         },
     )
 
+    id: UUID4 = Field(..., description="The project ID.")
     title: str = Field(..., description="The title of the project.")
     is_favorite: bool = Field(..., description="Whether the project is marked favorite.")
     status: ProjectStatusEnum = Field(..., description="The status of the project.")
@@ -210,6 +212,7 @@ class GetRecentProjects200Response(BaseModel):
             "example": {
                 "projects": [
                     {
+                        "id": "12345678-9012-3456-7890-123456789012",
                         "title": "Auth Service Revamp",
                         "is_favorite": True,
                         "status": ProjectStatusEnum.IN_PROGRESS.value,
