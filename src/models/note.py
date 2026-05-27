@@ -123,6 +123,7 @@ class NoteResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "id": "12345678-9012-3456-7890-123456789012",
+                "title": "Meeting notes",
                 "project": {
                     "id": "12345678-9012-3456-7890-123456789012",
                     "title": "Project 1",
@@ -134,6 +135,7 @@ class NoteResponse(BaseModel):
     )
 
     id: UUID4 = Field(..., description="The note ID.")
+    title: str = Field(..., description="The title of the note.")
     project: Optional[NoteResponseProject] = Field(
         None, description="Linked project, if any."
     )
@@ -150,6 +152,7 @@ class GetAllNotes200Response(BaseModel):
                 "notes": [
                     {
                         "id": "12345678-9012-3456-7890-123456789012",
+                        "title": "Personal note",
                         "project": {
                             "id": "12345678-9012-3456-7890-123456789012",
                             "title": "Project 1",
