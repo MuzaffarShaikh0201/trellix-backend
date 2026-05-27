@@ -11,7 +11,7 @@ from .enums import (
     TaskStatusEnum,
     TaskTypeEnum,
 )
-from .database import Base, Project, Task, User
+from .database import Base, Note, Project, Task, User
 from .misc import Root200Response, Health200Response
 from .auth import (
     RegisterParams,
@@ -23,6 +23,18 @@ from .auth import (
     RefreshParams,
     Refresh200Response,
     Logout200Response,
+)
+from .note import (
+    CreateNoteParams,
+    CreateNote201Response,
+    DeleteNote200Response,
+    GetAllNotesParams,
+    GetAllNotes200Response,
+    GetNote200Response,
+    ToggleNotePin200Response,
+    UpdateNote200Response,
+    UpdateNoteParams,
+    NoteResponse,
 )
 from .project import (
     CreateProjectParams,
@@ -57,6 +69,7 @@ __all__ = [
     "TaskDomainEnum",
     "Base",
     "Health200Response",
+    "Note",
     "Project",
     "Task",
     "Root200Response",
@@ -69,6 +82,16 @@ __all__ = [
     "Login200Response",
     "RefreshParams",
     "Refresh200Response",
+    "CreateNoteParams",
+    "CreateNote201Response",
+    "DeleteNote200Response",
+    "GetAllNotesParams",
+    "GetAllNotes200Response",
+    "GetNote200Response",
+    "ToggleNotePin200Response",
+    "UpdateNoteParams",
+    "UpdateNote200Response",
+    "NoteResponse",
     "CreateProjectParams",
     "CreateProject201Response",
     "Logout200Response",

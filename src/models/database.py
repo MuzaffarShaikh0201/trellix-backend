@@ -12,6 +12,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -101,6 +102,10 @@ class User(Base, TimestampMixin):
         back_populates="user",
         lazy="raise",
     )
+    notes: Mapped[list["Note"]] = relationship(
+        back_populates="user",
+        lazy="raise",
+    )
 
     # Indexes, constraints, and unique constraints
     __table_args__ = (
@@ -144,6 +149,11 @@ class Project(Base, TimestampMixin):
     # Relationships
     user: Mapped["User"] = relationship(back_populates="projects", lazy="raise")
     tasks: Mapped[list["Task"]] = relationship(
+        back_populates="project",
+        lazy="raise",
+        cascade="all, delete-orphan",
+    )
+    notes: Mapped[list["Note"]] = relationship(
         back_populates="project",
         lazy="raise",
         cascade="all, delete-orphan",
@@ -254,4 +264,41 @@ class Task(Base, TimestampMixin):
         Index("idx_tasks_status", "status"),
         Index("idx_tasks_domain", "domain"),
         Index("idx_tasks_parent_task_id", "parent_task_id"),
+    )
+
+
+class Note(Base, TimestampMixin):
+    """User note with markdown content; optionally linked to a project."""
+
+    __tablename__ = "notes"
+
+    id: Mapped[PythonUUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[PythonUUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    user_id: Mapped[PythonUUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_pinned: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # Relationships
+    project: Mapped["Project | None"] = relationship(
+        back_populates="notes", lazy="raise"
+    )
+    user: Mapped["User"] = relationship(back_populates="notes", lazy="raise")
+
+    __table_args__ = (
+        Index("idx_notes_project_id", "project_id"),
+        Index("idx_notes_user_id", "user_id"),
+        Index("idx_notes_is_pinned", "is_pinned"),
+        Index("idx_notes_is_deleted", "is_deleted"),
     )
